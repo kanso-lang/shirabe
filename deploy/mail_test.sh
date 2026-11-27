@@ -28,6 +28,17 @@ GMAIL_ADDRESS="ana+shows@gmail.com" GMAIL_APP_PASSWORD="abcd efgh ijkl mnop" \
 want="SENRO_MAIL='smtp://ana%2Bshows%40gmail.com:abcdefghijklmnop@smtp.gmail.com:587'"
 [ "$(cat "$t/etc/mail.env")" = "$want" ] || fail "the setting reads $(cat "$t/etc/mail.env")"
 
+# Turnstile's keys travel with it, in the same file.
+GMAIL_ADDRESS="ana+shows@gmail.com" GMAIL_APP_PASSWORD="abcd efgh ijkl mnop" \
+  TURNSTILE_SITE_KEY="0x4AAAAAAAsite" TURNSTILE_SECRET_KEY="0x4AAAAAAAsecret" \
+  sh deploy/seal_mail.sh "file://$t/release/public/mail-key.pem" \
+  "$t/release/deploy/mail.enc" > /dev/null || fail "seal_mail.sh with Turnstile"
+(cd "$t/release" && sh deploy/mail.sh) > /dev/null || fail "mail.sh with Turnstile"
+keyed="$want
+TURNSTILE_SITE_KEY='0x4AAAAAAAsite'
+TURNSTILE_SECRET_KEY='0x4AAAAAAAsecret'"
+[ "$(cat "$t/etc/mail.env")" = "$keyed" ] || fail "with Turnstile it reads $(cat "$t/etc/mail.env")"
+
 # Sealed to another server's key, the setting is reported and the old one kept.
 mkdir -p "$t/other/deploy"
 cp deploy/mail.sh "$t/other/deploy/"
@@ -37,7 +48,7 @@ GMAIL_ADDRESS="bo@gmail.com" GMAIL_APP_PASSWORD="zzzz" \
   "$t/release/deploy/mail.enc" > /dev/null
 (cd "$t/release" && sh deploy/mail.sh) > "$t/said" || fail "mail.sh with a foreign seal"
 grep -q "sealed to another key" "$t/said" || fail "a foreign seal went unreported"
-[ "$(cat "$t/etc/mail.env")" = "$want" ] || fail "a foreign seal changed the setting"
+[ "$(cat "$t/etc/mail.env")" = "$keyed" ] || fail "a foreign seal changed the setting"
 
 # Without the secrets, nothing is sealed.
 rm -f "$t/release/deploy/mail.enc"

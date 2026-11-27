@@ -56,13 +56,16 @@ jobs:
         run: sh deploy/mail_test.sh
       - name: rows made before owners go to the first confirmed account
         run: sh deploy/owners_test.sh
-      # The Gmail secrets, sealed to the key the server publishes, so only the
-      # server can read them (deploy/seal_mail.sh, deploy/mail.sh).
+      # The Gmail secrets and Turnstile's keys, sealed to the key the server
+      # publishes, so only the server can read them (deploy/seal_mail.sh,
+      # deploy/mail.sh).
       - name: seal the mail setting
         if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
         env:
           GMAIL_ADDRESS: ${{ secrets.GMAIL_ADDRESS }}
           GMAIL_APP_PASSWORD: ${{ secrets.GMAIL_APP_PASSWORD }}
+          TURNSTILE_SITE_KEY: ${{ secrets.TURNSTILE_SITE_KEY }}
+          TURNSTILE_SECRET_KEY: ${{ secrets.TURNSTILE_SECRET_KEY }}
         run: sh deploy/seal_mail.sh https://178-105-197-4.sslip.io/mail-key.pem deploy/mail.enc
       # The server asks GitHub for the latest release and runs what it holds:
       # the binary, the files it serves, and the service that runs it, with

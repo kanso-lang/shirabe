@@ -42,6 +42,13 @@ starts, so the password is readable only there. After changing a secret,
 run the `ci` workflow on `main` by hand to publish a release that carries
 it. `deploy/mail_test.sh` checks the whole trip.
 
+Sign-up and the password-reset form ask Cloudflare Turnstile whether a
+person sent them, once the repository has the widget's two keys as the
+`TURNSTILE_SITE_KEY` and `TURNSTILE_SECRET_KEY` Actions secrets. They travel
+to the server sealed with the mail setting. Without them the forms still
+turn away a program that fills their hidden field, and each lets one
+address in ten times an hour and everyone together a hundred times a day.
+
 Hetzner has no spending cap, so the `cost` workflow is one. Every day it
 prices everything in the Hetzner project at Hetzner's own rates: servers
 and their backups, traffic past what a server includes (projected to the
