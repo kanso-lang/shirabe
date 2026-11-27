@@ -6,26 +6,27 @@ import "kanso-lang/senro/routes"
 import "kanso-lang/senro/web"
 import "std/list"
 import "std/net/http"
+import "std/text"
 
 # A row of `tracks` belongs to a album, so each action takes the album's id
 # and the routes nest under it: `index` answers GET
 # /albums/:album_id/tracks. A row is found only under its own album, and a
 # album that is not there has none to list or make.
 pub fn index req db album_id:int
-  number = models/page_number (web/value (web/query req) "page")
-  album/find db album_id .> (a -> listed req db a number)
+  album/find db album_id .> (a -> listed req db a)
 
-# An album's tracks, a page of them, with the album's artist for the link
-# back, since an album's own pages nest under its artist.
-fn listed _ _ none _
+# An album's tracks in their order on it, with the album's artist for the
+# link back, since an album's own pages nest under its artist.
+fn listed _ _ none
   effect http/not_found
 
-fn listed req db a number
-  asked = track/paged db "album_id" a.id number per_page
-  asked .> (p -> effect (listing req a p))
+fn listed req db a
+  in_order db a.id .> (rows -> effect (listing req a rows))
 
-# How many rows a page of the list shows.
-per_page = 25
+# An album's tracks, first to last.
+fn in_order db album_id
+  track/paged db "album_id" album_id 1 album_most
+    .> (p -> effect (list/to_list (list/sort_by p.rows (r -> r.position))))
 
 pub fn show req db album_id:int id:int
   under db album_id id .> (r -> effect (shown req r))
@@ -38,8 +39,8 @@ pub fn new req db album_id:int
 # its tracks were added, and nobody types a number.
 pub fn create req db album_id:int
   given = put (sent (web/input req)) "album_id" "{album_id}"
-  numbered = (p -> track/create db (put given "position" (next p.rows)))
-  making = track/paged db "album_id" album_id 1 album_most .> numbered
+  numbered = (rows -> track/create db (put given "position" (next rows)))
+  making = in_order db album_id .> numbered
   made_of = (w -> effect (made req album_id w))
   within db album_id (making .> made_of)
 
@@ -54,9 +55,9 @@ pub fn edit req db album_id:int id:int
   under db album_id id .> (r -> effect (editing req album_id id r))
 
 pub fn update req db album_id:int id:int
-  given = picked (web/input req)
+  f = web/input req
   under db album_id id
-    .> (r -> updating db id given r)
+    .> (r -> updating db id f r)
     .> (w -> effect (changed req album_id id w))
 
 pub fn destroy _ db album_id:int id:int
@@ -88,8 +89,44 @@ fn owned album_id r
 fn updating _ _ _ none
   effect web/absent
 
-fn updating db id given _
-  track/update db id given
+# A track dragged to another place on its album sends only that place;
+# its form sends its title and audio.
+fn updating db id f r
+  sent_to db id f r (text/to_int (web/value f "position"))
+
+fn sent_to db id f _ none
+  track/update db id (picked f)
+
+fn sent_to db _ _ r to
+  moved db r to
+
+# The album's tracks renumbered with this one at `to`, and the others in
+# the order they had, closing the gap it left.
+fn moved db r to
+  in_order db r.album_id
+    .> (rows -> renumbered db (placed (others rows r.id) r to))
+    .> (_ -> effect r)
+
+fn others rows id
+  list/to_list (list/reject rows (x -> x.id == id))
+
+fn placed rest r to
+  at = list/max [1 (list/min [to (length rest + 1)])]
+  ahead = list/to_list (list/take rest (at - 1))
+  after = list/to_list (list/drop rest (at - 1))
+  list/concat (push ahead r) after
+
+fn renumbered db rows
+  places = list/to_list (list/take list/naturals (length rows))
+  each = (so_far n -> so_far .> (_ -> renumber db rows[n] n))
+  list/fold places (effect 0) each
+
+fn renumber _ none _
+  effect 0
+
+fn renumber db r n
+  return effect 0 if r.position == n
+  track/update db r.id { "position":"{n}" }
 
 fn removing _ _ none
   effect web/absent
@@ -103,11 +140,11 @@ fn listed_path album_id
 fn shown_path album_id id
   routes/path_to "tracks/show" album_id id
 
-fn listing req a p
+fn listing req a rows
   as_json = track/track_attributes
-  mapped = list/to_list (list/map p.rows as_json)
+  mapped = list/to_list (list/map rows as_json)
   return web/json 200 mapped if web/wants_json? req
-  page = views/tracks_index_view a.id a.artist_id p.rows p.number p.more
+  page = views/tracks_index_view a.id a.artist_id rows
   views/answer req 200 "Tracks" page
 
 fn shown _ none
