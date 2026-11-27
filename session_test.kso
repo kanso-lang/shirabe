@@ -21,6 +21,7 @@ type made
 test_signing_in = describe "signing in" [
   around (visit/within signed connected)
   it "is asked of a stranger" turned_back
+  it "offers a password instead of a passkey" offered
   it "waits for the address to be confirmed" held_back
   context "with an account" [
     before joined
@@ -33,6 +34,14 @@ test_signing_in = describe "signing in" [
 
 fn turned_back v
   visit/get v "/" .> (v -> effect (expect (visit/location v) . to (equal door)))
+
+# The door's link to the password form is a path a browser can follow.
+fn offered v
+  visit/get v "/session/new"
+    .> (v -> effect (expect (offers? v.body) . to (equal true)))
+
+fn offers? body
+  length (text/split body "href=\"/session/new?with=password\"") > 1
 
 fn held_back v
   signed_up v address

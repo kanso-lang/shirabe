@@ -46,9 +46,9 @@ div.row.justify-content-center
       if by_password and not signing_in
         a href=(path_to "registration/new") Use a passkey instead
       if not by_password and signing_in
-        a href="{path_to "session/new"}?with=password" Use a password instead
+        a href="/session/new?with=password" Use a password instead
       if not by_password and not signing_in
-        a href="{path_to "registration/new"}?with=password" Use a password instead
+        a href="/registration/new?with=password" Use a password instead
     if signing_in
       p.text-center
         a href=(path_to "registration/new") Make an account
