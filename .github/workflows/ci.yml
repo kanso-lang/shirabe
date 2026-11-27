@@ -4,7 +4,8 @@ on:
   push:
     branches: [main]
   workflow_dispatch:
-# A push to main publishes the build as a release, which the server pulls.
+# A push to main publishes the build as a release, which the server pulls,
+# and so does a run started by hand on main, which reseals the mail setting.
 permissions:
   contents: write
 jobs:
@@ -51,17 +52,29 @@ jobs:
           KANSO=/tmp/kanso/target/release/kanso sh "$HOME/.hako/kanso-lang/senro@$senro/bin/senro" test
       - name: the release build
         run: /tmp/kanso/target/release/kanso build . --release
+      - name: the mail setting reaches the server sealed
+        run: sh deploy/mail_test.sh
+      # The Gmail secrets, sealed to the key the server publishes, so only the
+      # server can read them (deploy/seal_mail.sh, deploy/mail.sh).
+      - name: seal the mail setting
+        if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+        env:
+          GMAIL_ADDRESS: ${{ secrets.GMAIL_ADDRESS }}
+          GMAIL_APP_PASSWORD: ${{ secrets.GMAIL_APP_PASSWORD }}
+        run: sh deploy/seal_mail.sh https://178-105-197-4.sslip.io/mail-key.pem deploy/mail.enc
       # The server asks GitHub for the latest release and runs what it holds:
       # the binary, the files it serves, and the service that runs it, with
       # a sha256 so a broken download is never run.
       - name: publish the build
-        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           tag="build-$(date -u +%Y%m%d%H%M%S)-${GITHUB_SHA::7}"
+          sealed=""
+          [ ! -f deploy/mail.enc ] || sealed=deploy/mail.enc
           tar czf shirabe-linux-x86_64.tar.gz shirabe importmap.json javascript \
-            stylesheets vendor public deploy/shirabe.service
+            stylesheets vendor public deploy/shirabe.service deploy/mail.sh $sealed
           sha256sum shirabe-linux-x86_64.tar.gz > shirabe-linux-x86_64.tar.gz.sha256
           gh release create "$tag" shirabe-linux-x86_64.tar.gz shirabe-linux-x86_64.tar.gz.sha256 \
             --title "$tag" --notes "Built from $GITHUB_SHA." --latest

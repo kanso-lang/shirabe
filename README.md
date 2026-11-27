@@ -26,9 +26,18 @@ A push to `main` runs CI, which builds kanso at the commit `.kanso-version`
 pins, runs the tests, builds the release binary, and publishes it as a
 GitHub release. The server asks for the latest release once a minute, checks
 the download against its sha256, and restarts the app on it. Nothing logs in
-to deploy, and the repository holds no secrets.
+to deploy.
 
 The server is set up on its first boot by `deploy/cloud-init.yml`: Postgres,
 Caddy in front of the app with a certificate for the server's `sslip.io`
 name, and the timer that pulls releases. The database password and the
 session secret are made there, at random, and never leave the server.
+
+The app sends its mail through Gmail. The address and an app password are
+the repository's `GMAIL_ADDRESS` and `GMAIL_APP_PASSWORD` Actions secrets.
+The server makes a key pair on its first start and serves the public half
+at `/mail-key.pem`. CI encrypts the mail setting to that key and puts it in
+the release, and `deploy/mail.sh` decrypts it on the server before the app
+starts, so the password is readable only there. After changing a secret,
+run the `ci` workflow on `main` by hand to publish a release that carries
+it. `deploy/mail_test.sh` checks the whole trip.

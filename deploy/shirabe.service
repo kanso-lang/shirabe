@@ -10,6 +10,12 @@ WorkingDirectory=/srv/shirabe/current
 # made before that, at the address it kept.
 Environment=SENRO_URL=https://178-105-197-4.sslip.io
 EnvironmentFile=/etc/shirabe/env
+# How the app sends mail, decrypted by deploy/mail.sh (run as root, which
+# the `+` asks for) from the setting the release carries sealed. systemd
+# reads this file after ExecStartPre has written it. Without one, senro
+# writes each letter to the journal.
+ExecStartPre=+/bin/sh /srv/shirabe/current/deploy/mail.sh
+EnvironmentFile=-/etc/shirabe/mail.env
 ExecStart=/srv/shirabe/current/shirabe
 Restart=always
 RestartSec=2
