@@ -13,5 +13,6 @@ html lang="en"
         a.navbar-brand href="/"
           span.seal 調
           |  shirabe
+        a.text-secondary href=(path_to "account/show") Account
     main.container.pb-5
       == body

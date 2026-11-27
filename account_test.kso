@@ -1,0 +1,72 @@
+import "kanso-lang/senro/visit"
+import "std/expect"
+import "std/list"
+import "std/spec"
+import "std/text"
+
+# A visit just after making an account: the address, and the password the
+# page showed.
+type made
+  visit
+  email
+  password
+
+# A signed-in visitor's own account page: the address it signs in with, and
+# a new password chosen and shown once, after which the visitor is still
+# signed in. Passkeys are added and removed in a browser, which senro's
+# spec of its generated app drives.
+test_account = describe "the account page" [
+  around (visit/within signed connected)
+  it "names the address it signs in with" named
+  it "shows a new password and keeps the sign-in" renewed
+  it "is asked of a stranger" turned_back
+]
+
+fn named v
+  joined v address
+    .> (w -> visit/get w "/account")
+    .> (w -> effect (expect w.body . to (contain "Signed in as {address}")))
+
+fn renewed v
+  joined v address
+    .> (w -> visit/patch w "/account" {})
+    .> (w -> still_in w (shown_password w.body))
+
+fn still_in v password
+  return err "no password was shown" if length password < 12
+  visit/get v "/account" .> (w -> effect (expect w.status . to (equal 200)))
+
+fn turned_back v
+  visit/get v "/account"
+    .> (w -> effect (expect (visit/location w) . to (equal "/session/new")))
+
+fn joined v email
+  signed_up v email .> signed_in
+
+fn signed_up v email
+  visit/post v "/registration" { "email":email }
+    .> (w -> effect (made w email (shown_password w.body)))
+
+fn signed_in m
+  visit/mailed m.visit
+    .> (letters -> confirmed m.visit (list/find letters (l -> l.to == m.email)))
+    .> (v -> visit/post v "/session" { "email":m.email "password":m.password })
+
+fn shown_password body
+  after = text/split body "<code class=\"password\">"
+  return "" if length after < 2
+  text_of (list/first (text/split after[2] "</code>"))
+
+fn text_of none
+  ""
+
+fn text_of s
+  s
+
+fn confirmed _ none
+  err "making the account mailed no link"
+
+fn confirmed v letter
+  visit/patch v (text/replace (visit/link_in letter) "/edit" "") {}
+
+address = "ada@example.test"
