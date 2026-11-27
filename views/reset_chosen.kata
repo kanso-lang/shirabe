@@ -1,14 +1,10 @@
-takes path problems
+takes path
 div.row.justify-content-center
   div.col-md-7.col-lg-5
-    h1.mb-4 Choose a new password
+    h1.mb-2 A new password
+    p.lede.mb-4 The app chooses it, and shows it to you once.
     div.card
       div.card-body.p-4
         form method="post" action=path
           input type="hidden" name="_method" value="PATCH"
-          div.mb-4
-            label.form-label for="password" New password
-            input.form-control id="password" type="password" name="password" required="required"
-            if problems["password"] != none
-              p.problem = problems["password"]
-          button.btn.btn-primary.w-100 Save it
+          button.btn.btn-primary.w-100 Make me a new password

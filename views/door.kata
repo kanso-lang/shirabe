@@ -3,7 +3,7 @@ div.row.justify-content-center
   div.col-md-7.col-lg-5
     h1.mb-4 = heading
     if notice != ""
-      p.notice.mb-4 = notice
+      p.notice = notice
     div.card
       div.card-body.p-4
         form method="post" action=path
@@ -12,11 +12,12 @@ div.row.justify-content-center
             input.form-control id="email" type="email" name="email" required="required" value=email
             if problems["email"] != none
               p.problem = problems["email"]
-          div.mb-4
-            label.form-label for="password" Password
-            input.form-control id="password" type="password" name="password" required="required"
-            if problems["password"] != none
-              p.problem = problems["password"]
+          if signing_in
+            div.mb-4
+              label.form-label for="password" Password
+              input.form-control id="password" type="password" name="password" required="required"
+              if problems["password"] != none
+                p.problem = problems["password"]
           button.btn.btn-primary.w-100 = heading
     if signing_in
       p.mt-4.text-center
