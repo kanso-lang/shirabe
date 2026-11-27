@@ -1,0 +1,109 @@
+import "./given"
+import "kanso-lang/senro/visit"
+import "std/expect"
+import "std/list"
+import "std/spec"
+import "std/text"
+
+# A visit just after making an account: the address, and the password the
+# page showed.
+type made
+  visit
+  email
+  password
+
+# The owner's visit, signed in, and the path of the album they made.
+type owned
+  visit
+  at
+
+# An album shared, asked for as browsers ask: its owner signed in, a stranger
+# who has not signed in, and another account. The owner makes an artist, an
+# album and a track; the album is private until the owner makes it public,
+# and nobody else can change it.
+test_sharing = describe "an album" [
+  around (visit/within signed connected)
+  it "is hidden from a stranger while it is private" hidden
+  it "is shown with its tracks once its owner makes it public" shared
+  it "is not changed by another account" kept
+]
+
+fn hidden v
+  owned_album v
+    .> (o -> stranger o.visit .> (w -> visit/get w o.at))
+    .> (s -> effect (expect s.status . to (equal 404)))
+
+fn shared v
+  owned_album v
+    .> (o -> made_public o.visit o.at)
+    .> (s -> effect (expect s.body . to (contain "lullaby")))
+
+# The album made public with its own form, then asked for by a stranger.
+fn made_public v at
+  visit/patch v at (put given/album "public" "1")
+    .> (w -> stranger w)
+    .> (w -> visit/get w at)
+
+# The album is public, so the other account can see it; it is the owner's
+# rule that refuses the change.
+fn kept v
+  owned_album v
+    .> (o -> tried_by_another o.visit o.at)
+    .> (s -> effect (expect s.status . to (equal 403)))
+
+# Another account, signed in, sends the album's own form to change it.
+fn tried_by_another v at
+  visit/patch v at (put given/album "public" "1")
+    .> (w -> stranger w)
+    .> (w -> joined w other)
+    .> (o -> visit/patch o at (put given/album "title" "stolen"))
+
+# The owner, signed in, with an artist, an album and a track on it called
+# "lullaby".
+fn owned_album v
+  joined v address
+    .> (w -> visit/post w "/artists" given/artist)
+    .> (w -> visit/post w "{visit/location w}/albums" given/album)
+    .> (w -> with_track w (visit/location w))
+
+fn with_track v at
+  album_id = text_of (list/last (text/split at "/"))
+  sung = put given/track "title" "lullaby"
+  visit/post v "/albums/{album_id}/tracks" sung .> (w -> effect (owned w at))
+
+# The owner's browser signed out: nobody signed in.
+fn stranger v
+  visit/remove v "/session"
+
+fn joined v email
+  signed_up v email .> signed_in
+
+fn signed_up v email
+  visit/post v "/registration" { "email":email }
+    .> (w -> effect (made w email (shown_password w.body)))
+
+fn signed_in m
+  visit/mailed m.visit
+    .> (letters -> confirmed m.visit (list/find letters (l -> l.to == m.email)))
+    .> (v -> visit/post v "/session" { "email":m.email "password":m.password })
+
+fn shown_password body
+  after = text/split body "<code class=\"password\">"
+  return "" if length after < 2
+  text_of (list/first (text/split after[2] "</code>"))
+
+fn text_of none
+  ""
+
+fn text_of s
+  s
+
+fn confirmed _ none
+  err "making the account mailed no link"
+
+fn confirmed v letter
+  visit/patch v (text/replace (visit/link_in letter) "/edit" "") {}
+
+address = "ada@example.test"
+
+other = "grace@example.test"

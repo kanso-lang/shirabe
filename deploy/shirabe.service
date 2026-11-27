@@ -17,6 +17,9 @@ EnvironmentFile=/etc/shirabe/env
 ExecStartPre=+/bin/sh /srv/shirabe/current/deploy/mail.sh
 EnvironmentFile=-/etc/shirabe/mail.env
 ExecStart=/srv/shirabe/current/shirabe
+# Rows made before artists, albums and tracks had owners get one, once the
+# app has added the columns (deploy/owners.sh).
+ExecStartPost=+/bin/sh /srv/shirabe/current/deploy/owners.sh
 Restart=always
 RestartSec=2
 [Install]

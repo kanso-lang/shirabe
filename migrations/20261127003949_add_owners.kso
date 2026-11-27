@@ -1,0 +1,16 @@
+import "kanso-lang/senro/models"
+
+# Each artist, album and track belongs to the account that made it, named by
+# its address, which is how a session names its viewer. An album is private
+# until its owner makes it public (1). Rows made before this have no owner;
+# deploy/owners.sh gives them one.
+pub add_owners = [
+  (models/add_column "artists" owner)
+  (models/add_column "albums" owner)
+  (models/add_column "albums" public)
+  (models/add_column "tracks" owner)
+]
+
+owner = models/column "owner" "text not null default ''"
+
+public = models/column "public" "integer not null default 0"

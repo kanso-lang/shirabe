@@ -16,4 +16,10 @@ div.row
         input.form-control id="year" name="year" type="number" value=fields["year"]
         if problems["year"] != none
           p.problem = problems["year"]
+      div.form-check.mb-4
+        if fields["public"] == "1"
+          input.form-check-input id="public" type="checkbox" name="public" value="1" checked="checked"
+        if fields["public"] != "1"
+          input.form-check-input id="public" type="checkbox" name="public" value="1"
+        label.form-check-label for="public" Public: anyone with the album's link can listen
       button.btn.btn-primary Save

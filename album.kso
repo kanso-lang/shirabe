@@ -5,16 +5,20 @@ import "kanso-lang/senro/models"
 # and answers for the table by this module's name: `album/find db id`,
 # `album/paged db number per`, `album/create db fields` and the rest.
 #
-# Anyone may make, change and remove a album. The models module asks these
-# before it writes; narrow them to the visitors who should.
-pub fn create? _ _
-  true
+# Only the account that made an album sees it, changes it or removes it, and
+# it can only be made as that account's own.
+pub fn create? viewer r
+  r.owner == viewer
 
-pub fn update? _ _
-  true
+pub fn update? viewer r
+  r.owner == viewer
 
-pub fn destroy? _ _
-  true
+pub fn destroy? viewer r
+  r.owner == viewer
+
+# Anyone may see a public album, which is how it is shared.
+pub fn visible? viewer r
+  r.owner == viewer or r.public == 1
 
 # What makes a album fit to keep: each number is one its column takes.
 pub fn problems r
