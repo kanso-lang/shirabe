@@ -99,7 +99,7 @@ fn shown _ none
 fn shown req record
   attributes = album/album_attributes record
   return web/json 200 attributes if web/wants_json? req
-  page = views/albums_show_view record
+  page = views/albums_show_view record.id record
   views/answer req 200 "Album" page
 
 fn editing _ _ _ none

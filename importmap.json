@@ -1,0 +1,11 @@
+{
+  "imports": {
+    "application": "/javascript/application.js"
+  },
+  "preload": [
+    "/javascript/application.js"
+  ],
+  "stylesheets": {
+    "bootstrap/dist/css/bootstrap.min.css": "https://ga.jspm.io/npm:bootstrap@5.3.3/dist/css/bootstrap.min.css"
+  }
+}

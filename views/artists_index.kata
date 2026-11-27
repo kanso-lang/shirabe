@@ -1,13 +1,12 @@
 takes rows number more
-header
-  h1 Artists
-  p.lede
-    a href=(path_to "artists/new") New artist
-ul.artists
+div.d-flex.align-items-end.justify-content-between.mb-4
+  div
+    h1.mb-1 Artists
+  a.btn.btn-primary href=(path_to "artists/new") New artist
+div.list-group
   each rows r ->
-    li
-      a href=(path_to "artists/show" r.id) = r.name
-nav.pages
+    a.list-group-item.list-group-item-action.py-3 href=(path_to "artists/show" r.id) = r.name
+nav.mt-4.d-flex.gap-3
   if number > 1
     a href="?page={number - 1}" Previous page
   if more

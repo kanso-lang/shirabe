@@ -1,3 +1,4 @@
 /shirabe
 *.ll
 /storage/
+/node_modules/

@@ -1,18 +1,19 @@
 takes path method fields problems
-header
-  h1 Album
-  p.lede
-    a href=path Back
-form method="post" action=path
-  input type="hidden" name="_method" value=method
-  label
-    | title
-    input name="title" value=fields["title"]
-  if problems["title"] != none
-    p.problem = problems["title"]
-  label
-    | year
-    input name="year" value=fields["year"]
-  if problems["year"] != none
-    p.problem = problems["year"]
-  button Save
+div.row
+  div.col-lg-7
+    p.mb-2
+      a.text-secondary href=path Back
+    h1.mb-4 Album
+    form method="post" action=path
+      input type="hidden" name="_method" value=method
+      div.mb-3
+        label.form-label for="title" Title
+        input.form-control id="title" name="title" value=fields["title"]
+        if problems["title"] != none
+          p.problem = problems["title"]
+      div.mb-3
+        label.form-label for="year" Year
+        input.form-control id="year" name="year" type="number" value=fields["year"]
+        if problems["year"] != none
+          p.problem = problems["year"]
+      button.btn.btn-primary Save
