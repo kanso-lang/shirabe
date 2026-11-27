@@ -9,6 +9,7 @@ import "std/spec"
 test_albums = describe "albums" [
   around (visit/within routes connected)
   it "are listed" listed
+  it "are begun from a form for a new one" offered
   it "are made from the form and shown" made
   it "are changed from the form" changed
   it "are not made from a field that breaks its rule" refused
@@ -18,6 +19,12 @@ test_albums = describe "albums" [
 fn listed v
   albums_path v
     .> (at -> visit/get v at)
+    .> (v -> effect (expect v.status . to (equal 200)))
+
+# /artists/:artist_id/albums/new is the form, not an album whose id is "new".
+fn offered v
+  albums_path v
+    .> (at -> visit/get v "{at}/new")
     .> (v -> effect (expect v.status . to (equal 200)))
 
 fn made v
