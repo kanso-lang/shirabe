@@ -8,10 +8,10 @@ import "kanso-lang/senro/web"
 import "std/list"
 import "std/net/http"
 
-# A row of `albums` belongs to a artist, so each action takes the artist's
-# id and the routes nest under it: `index` answers GET
-# /artists/:artist_id/albums. A row is found only under its own artist, and
-# a artist that is not there has none to list or make.
+# A row of `albums` belongs to an artist, so its list and its form take the
+# artist's id and nest under it: `index` answers GET
+# /artists/:artist_id/albums. An artist that is not there has none to list
+# or make.
 pub fn index req db artist_id:int
   number = models/page_number (web/value (web/query req) "page")
   asked = album/paged db "artist_id" artist_id number per_page
@@ -26,8 +26,10 @@ per_page = 25
 # else there is no such album.
 pub without_sign_in = ["show"]
 
-pub fn show req db artist_id:int id:int
-  under db artist_id id .> (r -> album_page req db r)
+# An album's own pages are shallow: /albums/:id finds it by its id, and only
+# its list and its form nest under the artist.
+pub fn show req db id:int
+  album/find db id .> (r -> album_page req db r)
 
 fn album_page _ _ none
   effect http/not_found
@@ -52,19 +54,17 @@ pub fn create req db artist_id:int
   made_of = (w -> effect (made req artist_id w))
   within db artist_id (making .> made_of)
 
-pub fn edit req db artist_id:int id:int
-  under db artist_id id .> (r -> effect (editing req artist_id id r))
+pub fn edit req db id:int
+  album/find db id .> (r -> effect (editing req id r))
 
-pub fn update req db artist_id:int id:int
+pub fn update req db id:int
   given = picked (web/input req)
-  under db artist_id id
+  album/find db id
     .> (r -> updating db id given r)
-    .> (w -> effect (changed req artist_id id w))
+    .> (w -> effect (changed req id w))
 
-pub fn destroy _ db artist_id:int id:int
-  under db artist_id id
-    .> (r -> removing db id r)
-    .> (w -> effect (gone artist_id w))
+pub fn destroy _ db id:int
+  album/find db id .> (r -> removing db id r .> (w -> effect (gone r w)))
 
 # `then` when the artist is there, and a 404 when it is not.
 fn within db id then
@@ -76,17 +76,7 @@ fn held none _
 fn held _ then
   then
 
-# The row with this id under this artist, or none.
-fn under db artist_id id
-  album/find db id .> (r -> effect (owned artist_id r))
-
-fn owned _ none
-  none
-
-fn owned artist_id r
-  if ("{r.artist_id}" == "{artist_id}") r none
-
-# A write to a row under another artist finds nothing.
+# A write to an album that is not there finds nothing.
 fn updating _ _ _ none
   effect web/absent
 
@@ -102,8 +92,8 @@ fn removing db id _
 fn listed_path artist_id
   routes/path_to "albums/index" artist_id
 
-fn shown_path artist_id id
-  routes/path_to "albums/show" artist_id id
+fn shown_path id
+  routes/path_to "albums/show" id
 
 fn listing req artist_id p
   as_json = album/album_attributes
@@ -120,11 +110,13 @@ fn shown req record tracks
   page = views/albums_show_view record.id record listed mine
   views/answer req 200 record.title page
 
-fn editing _ _ _ none
+fn editing _ _ none
   http/not_found
 
-fn editing req artist_id id record
-  form req (shown_path artist_id id) "PATCH" (filled record) {} 200
+# Only the owner is shown the form: a public album is listened to.
+fn editing req id record
+  return http/not_found if record.owner != web/viewer req
+  form req (shown_path id) "PATCH" (filled record) {} 200
 
 fn made req artist_id w:models/invalid
   path = listed_path artist_id
@@ -133,21 +125,20 @@ fn made req artist_id w:models/invalid
 fn made _ _ w:web/denied
   web/refusal w
 
-fn made _ artist_id w
-  web/redirect (shown_path artist_id w.id)
+fn made _ _ w
+  web/redirect (shown_path w.id)
 
-fn changed req artist_id id w:models/invalid
-  path = shown_path artist_id id
-  form req path "PATCH" (filled w.record) w.problems 422
+fn changed req id w:models/invalid
+  form req (shown_path id) "PATCH" (filled w.record) w.problems 422
 
-fn changed _ _ _ w:web/denied
+fn changed _ _ w:web/denied
   web/refusal w
 
-fn changed _ _ _ w:web/absent
+fn changed _ _ w:web/absent
   web/refusal w
 
-fn changed _ artist_id id _
-  web/redirect (shown_path artist_id id)
+fn changed _ id _
+  web/redirect (shown_path id)
 
 fn gone _ w:web/denied
   web/refusal w
@@ -155,8 +146,8 @@ fn gone _ w:web/denied
 fn gone _ w:web/absent
   web/refusal w
 
-fn gone artist_id _
-  web/redirect (listed_path artist_id)
+fn gone r _
+  web/redirect (listed_path r.artist_id)
 
 # The form an album is made and changed with: its fields as typed, and the
 # problem with each, if any.

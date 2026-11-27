@@ -1,9 +1,9 @@
-takes row artist_id mine
+takes row mine
 p.mb-2
   if mine
     a.text-secondary href=(path_to "tracks/index" row.album_id) All tracks
   if not mine
-    a.text-secondary href=(path_to "albums/show" artist_id row.album_id) The album
+    a.text-secondary href=(path_to "albums/show" row.album_id) The album
 h1.mb-1 = row.title
 p.lede.mb-4 Track {row.position}
 if row.audio != ""
@@ -12,7 +12,7 @@ if row.audio != ""
       audio.w-100 controls="controls" preload="metadata" src=(blob_path row.audio)
 if mine
   div.d-flex.gap-2
-    a.btn.btn-outline-secondary href=(path_to "tracks/edit" row.album_id row.id) Edit
-    form method="post" action=(path_to "tracks/destroy" row.album_id row.id)
+    a.btn.btn-outline-secondary href=(path_to "tracks/edit" row.id) Edit
+    form method="post" action=(path_to "tracks/destroy" row.id)
       input type="hidden" name="_method" value="DELETE"
       button.btn.btn-link.text-secondary Delete

@@ -17,7 +17,7 @@ ol.list-group.list-group-numbered.mb-4
 if mine
   div.d-flex.gap-2
     a.btn.btn-primary href=(path_to "tracks/index" album_id) Tracks
-    a.btn.btn-outline-secondary href=(path_to "albums/edit" row.artist_id row.id) Edit
-    form method="post" action=(path_to "albums/destroy" row.artist_id row.id)
+    a.btn.btn-outline-secondary href=(path_to "albums/edit" row.id) Edit
+    form method="post" action=(path_to "albums/destroy" row.id)
       input type="hidden" name="_method" value="DELETE"
       button.btn.btn-link.text-secondary Delete
