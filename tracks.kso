@@ -34,11 +34,21 @@ pub fn new req db album_id:int
   path = listed_path album_id
   within db album_id (effect (form req path "POST" blank {} 200))
 
+# A new track goes after the album's last, so an album plays in the order
+# its tracks were added, and nobody types a number.
 pub fn create req db album_id:int
   given = put (sent (web/input req)) "album_id" "{album_id}"
-  making = track/create db given
+  numbered = (p -> track/create db (put given "position" (next p.rows)))
+  making = track/paged db "album_id" album_id 1 album_most .> numbered
   made_of = (w -> effect (made req album_id w))
   within db album_id (making .> made_of)
+
+# More tracks than any album holds, so one page reads them all.
+album_most = 1000
+
+fn next rows
+  last = list/fold rows 0 (n r -> if (r.position > n) r.position n)
+  "{last + 1}"
 
 pub fn edit req db album_id:int id:int
   under db album_id id .> (r -> effect (editing req album_id id r))
@@ -153,20 +163,16 @@ fn form req path method fields problems code
   page = views/tracks_form_view path method fields problems
   views/answer req code "Track" page
 
-blank = { "audio":"" "position":"" "title":"" }
+blank = { "audio":"" "title":"" }
 
 fn filled r
-  { "audio":"{r.audio}" "position":"{r.position}" "title":"{r.title}" }
+  { "audio":"{r.audio}" "title":"{r.title}" }
 
 fn picked f
   without_empty_files (sent f) ["audio"]
 
 fn sent f
-  {
-    "audio":(web/value f "audio")
-    "position":(web/value f "position")
-    "title":(web/value f "title")
-  }
+  { "audio":(web/value f "audio") "title":(web/value f "title") }
 
 fn without_empty_files given names
   list/fold names given (m n -> if (m[n] == "") (delete m n) m)
