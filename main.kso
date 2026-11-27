@@ -1,0 +1,31 @@
+import "./album"
+import "./albums"
+import "./artist"
+import "./artists"
+import "./confirmations"
+import "./home"
+import "./migrations"
+import "./registration"
+import "./resets"
+import "./session"
+import "./track"
+import "./tracks"
+import "./unlocks"
+import "./user"
+import "./views"
+import "kanso-lang/senro/app"
+import "kanso-lang/senro/pg"
+import "kanso-lang/senro/web"
+
+derive app/conventions
+
+# The database comes from PGHOST, PGPORT, PGUSER, PGDATABASE and
+# PGPASSWORD, as libpq reads them, so the app runs wherever its host
+# sets them.
+connected = pg/from_env
+
+# Every action asks for a sign-in unless its module lists it in
+# `without_sign_in`.
+signed = web/requiring_sign_in routes session/signed_against
+
+app/run "shirabe" signed connected derived

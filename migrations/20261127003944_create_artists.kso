@@ -1,0 +1,5 @@
+import "kanso-lang/senro/models"
+
+pub create_artists = models/create_table "artists" [
+  (models/column "name" "text")
+]

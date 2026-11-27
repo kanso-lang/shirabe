@@ -1,0 +1,155 @@
+import "./album"
+import "./artist"
+import "./views"
+import "kanso-lang/senro/models"
+import "kanso-lang/senro/routes"
+import "kanso-lang/senro/web"
+import "std/list"
+import "std/net/http"
+
+# A row of `albums` belongs to a artist, so each action takes the artist's
+# id and the routes nest under it: `index` answers GET
+# /artists/:artist_id/albums. A row is found only under its own artist, and
+# a artist that is not there has none to list or make.
+pub fn index req db artist_id:int
+  number = models/page_number (web/value (web/query req) "page")
+  asked = album/paged db "artist_id" artist_id number per_page
+  listing_of = (p -> effect (listing req artist_id p))
+  within db artist_id (asked .> listing_of)
+
+# How many rows a page of the list shows.
+per_page = 25
+
+pub fn show req db artist_id:int id:int
+  under db artist_id id .> (r -> effect (shown req r))
+
+pub fn new req db artist_id:int
+  path = listed_path artist_id
+  within db artist_id (effect (form req path "POST" blank {} 200))
+
+pub fn create req db artist_id:int
+  given = put (picked (web/input req)) "artist_id" "{artist_id}"
+  making = album/create db given
+  made_of = (w -> effect (made req artist_id w))
+  within db artist_id (making .> made_of)
+
+pub fn edit req db artist_id:int id:int
+  under db artist_id id .> (r -> effect (editing req artist_id id r))
+
+pub fn update req db artist_id:int id:int
+  given = picked (web/input req)
+  under db artist_id id
+    .> (r -> updating db id given r)
+    .> (w -> effect (changed req artist_id id w))
+
+pub fn destroy _ db artist_id:int id:int
+  under db artist_id id
+    .> (r -> removing db id r)
+    .> (w -> effect (gone artist_id w))
+
+# `then` when the artist is there, and a 404 when it is not.
+fn within db id then
+  artist/find db id .> (found -> held found then)
+
+fn held none _
+  effect http/not_found
+
+fn held _ then
+  then
+
+# The row with this id under this artist, or none.
+fn under db artist_id id
+  album/find db id .> (r -> effect (owned artist_id r))
+
+fn owned _ none
+  none
+
+fn owned artist_id r
+  if ("{r.artist_id}" == "{artist_id}") r none
+
+# A write to a row under another artist finds nothing.
+fn updating _ _ _ none
+  effect web/absent
+
+fn updating db id given _
+  album/update db id given
+
+fn removing _ _ none
+  effect web/absent
+
+fn removing db id _
+  album/destroy db id
+
+fn listed_path artist_id
+  routes/path_to "albums/index" artist_id
+
+fn shown_path artist_id id
+  routes/path_to "albums/show" artist_id id
+
+fn listing req artist_id p
+  as_json = album/album_attributes
+  mapped = list/to_list (list/map p.rows as_json)
+  return web/json 200 mapped if web/wants_json? req
+  page = views/albums_index_view artist_id p.rows p.number p.more
+  views/answer req 200 "Albums" page
+
+fn shown _ none
+  http/not_found
+
+fn shown req record
+  attributes = album/album_attributes record
+  return web/json 200 attributes if web/wants_json? req
+  page = views/albums_show_view record
+  views/answer req 200 "Album" page
+
+fn editing _ _ _ none
+  http/not_found
+
+fn editing req artist_id id record
+  form req (shown_path artist_id id) "PATCH" (filled record) {} 200
+
+fn made req artist_id w:models/invalid
+  path = listed_path artist_id
+  form req path "POST" (filled w.record) w.problems 422
+
+fn made _ _ w:web/denied
+  web/refusal w
+
+fn made _ artist_id w
+  web/redirect (shown_path artist_id w.id)
+
+fn changed req artist_id id w:models/invalid
+  path = shown_path artist_id id
+  form req path "PATCH" (filled w.record) w.problems 422
+
+fn changed _ _ _ w:web/denied
+  web/refusal w
+
+fn changed _ _ _ w:web/absent
+  web/refusal w
+
+fn changed _ artist_id id _
+  web/redirect (shown_path artist_id id)
+
+fn gone _ w:web/denied
+  web/refusal w
+
+fn gone _ w:web/absent
+  web/refusal w
+
+fn gone artist_id _
+  web/redirect (listed_path artist_id)
+
+# The form a album is made and changed with: its fields as typed, and the
+# problem with each, if any.
+fn form req path method fields problems code
+  page = views/albums_form_view path method fields problems
+  views/answer req code "Album" page
+
+blank = { "title":"" "year":"" }
+
+fn filled r
+  { "title":"{r.title}" "year":"{r.year}" }
+
+fn picked f
+  { "title":(web/value f "title") "year":(web/value f "year") }

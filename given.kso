@@ -1,0 +1,8 @@
+# What the app's specs make rows from: a map for each model, holding what a
+# form sends to make one. The generators add a model's map here, and a spec
+# reads it as `given/<model>`.
+pub artist = { "name":"milk" }
+
+pub album = { "title":"milk" "year":"3" }
+
+pub track = { "position":"3" "title":"milk" }

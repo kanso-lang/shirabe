@@ -1,0 +1,69 @@
+import "kanso-lang/senro/visit"
+import "std/expect"
+import "std/list"
+import "std/spec"
+import "std/text"
+
+# Signing in, asked for as a browser asks. `signed` is the app as the entry
+# serves it, with the sign-in requirement around its routes, so an example
+# meets the door a visitor meets. A visit keeps the cookies the app sets:
+# the examples under "with an account" begin signed in, since `joined` makes
+# the account, follows the link mailed to confirm its address, and signs in.
+test_signing_in = describe "signing in" [
+  around (visit/within signed connected)
+  it "is asked of a stranger" turned_back
+  it "waits for the address to be confirmed" held_back
+  context "with an account" [
+    before joined
+    it "opens the app" opened
+    it "is over once the visitor signs out" over
+    it "takes the address and password again" returned
+    it "refuses a wrong password" refused
+  ]
+]
+
+fn turned_back v
+  visit/get v "/" .> (v -> effect (expect (visit/location v) . to (equal door)))
+
+fn held_back v
+  visit/post v "/registration" account
+    .> (v -> visit/post v "/session" account)
+    .> (v -> effect (expect v.status . to (equal 403)))
+
+fn joined v
+  visit/post v "/registration" account
+    .> (v -> visit/mailed v .> (letters -> confirmed v (list/first letters)))
+    .> (v -> visit/post v "/session" account)
+
+# The link opens a page with a button, and the button's form sends a PATCH
+# to the same path without `/edit`.
+fn confirmed _ none
+  err "making the account mailed no link"
+
+fn confirmed v letter
+  visit/patch v (text/replace (visit/link_in letter) "/edit" "") {}
+
+fn opened v
+  visit/get v "/" .> (v -> effect (expect v.status . to (equal 200)))
+
+fn over v
+  visit/remove v "/session"
+    .> (v -> visit/get v "/")
+    .> (v -> effect (expect (visit/location v) . to (equal door)))
+
+fn returned v
+  visit/remove v "/session"
+    .> (v -> visit/post v "/session" account)
+    .> (v -> visit/get v "/")
+    .> (v -> effect (expect v.status . to (equal 200)))
+
+fn refused v
+  visit/remove v "/session"
+    .> (v -> visit/post v "/session" mistaken)
+    .> (v -> effect (expect v.status . to (equal 422)))
+
+account = { "email":"ada@example.test" "password":"a long password" }
+
+mistaken = put account "password" "another password"
+
+door = "/session/new"
