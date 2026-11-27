@@ -1,0 +1,28 @@
+name: cost
+# Every day, everything in the Hetzner project is priced at Hetzner's rates,
+# and the run fails when the month would cost more than deploy/cost/budget.
+# GitHub mails a failed scheduled run to whoever last changed this file.
+# HCLOUD_READ_TOKEN is a read-only Hetzner API token, so this can look and
+# never change anything.
+on:
+  schedule:
+    - cron: "17 14 * * *"
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - deploy/cost/**
+      - .github/workflows/cost.yml
+permissions:
+  contents: read
+jobs:
+  price:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: the guard prices saved projects as Hetzner would
+        run: sh deploy/cost/cost_test.sh
+      - name: the project as it stands
+        if: github.event_name != 'pull_request'
+        env:
+          HCLOUD_TOKEN: ${{ secrets.HCLOUD_READ_TOKEN }}
+        run: sh deploy/cost/cost.sh

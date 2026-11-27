@@ -1,0 +1,64 @@
+{
+  "servers": [
+    {
+      "name": "app-1",
+      "server_type": {
+        "name": "cx23",
+        "prices": [
+          {
+            "location": "fsn1",
+            "price_hourly": {
+              "gross": "0.0104000000000000",
+              "net": "0.0104000000"
+            },
+            "price_monthly": {
+              "gross": "6.4900000000000000",
+              "net": "6.4900000000"
+            },
+            "included_traffic": 21990232555520,
+            "price_per_tb_traffic": {
+              "gross": "1.2000000000000000",
+              "net": "1.2000000000"
+            }
+          }
+        ]
+      },
+      "location": {
+        "name": "fsn1"
+      },
+      "backup_window": null,
+      "outgoing_traffic": 1000000000,
+      "included_traffic": 21990232555520
+    },
+    {
+      "name": "big-1",
+      "server_type": {
+        "name": "cx53",
+        "prices": [
+          {
+            "location": "fsn1",
+            "price_hourly": {
+              "net": "0.0561000000",
+              "gross": "0.0561000000000000"
+            },
+            "price_monthly": {
+              "net": "34.9900000000",
+              "gross": "34.9900000000000000"
+            },
+            "included_traffic": 21990232555520,
+            "price_per_tb_traffic": {
+              "net": "1.2000000000",
+              "gross": "1.2000000000000000"
+            }
+          }
+        ]
+      },
+      "location": {
+        "name": "fsn1"
+      },
+      "backup_window": "22-02",
+      "outgoing_traffic": 22990232555520,
+      "included_traffic": 21990232555520
+    }
+  ]
+}

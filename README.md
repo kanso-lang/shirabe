@@ -41,3 +41,12 @@ the release, and `deploy/mail.sh` decrypts it on the server before the app
 starts, so the password is readable only there. After changing a secret,
 run the `ci` workflow on `main` by hand to publish a release that carries
 it. `deploy/mail_test.sh` checks the whole trip.
+
+Hetzner has no spending cap, so the `cost` workflow is one. Every day it
+prices everything in the Hetzner project at Hetzner's own rates: servers
+and their backups, traffic past what a server includes (projected to the
+month's end), IPs, volumes, load balancers and snapshots. The run fails,
+and GitHub mails the failure, when the month would cost more than
+`deploy/cost/budget` euros. It reads the project with
+`HCLOUD_READ_TOKEN`, a read-only token, so it can only look. Object
+storage is outside Hetzner's Cloud API, so a bucket is not counted.
