@@ -1,7 +1,9 @@
 import "./given"
 import "kanso-lang/senro/visit"
 import "std/expect"
+import "std/list"
 import "std/spec"
+import "std/text"
 
 # The tracks, asked for as a browser asks. `senro test` runs these against
 # the test database, and each example runs in a transaction that is rolled
@@ -11,6 +13,7 @@ test_tracks = describe "tracks" [
   it "are listed" listed
   it "are made from the form and shown" made
   it "go after the album's last" appended
+  it "are listed in the order they are dragged into" reordered
   it "are changed from the form" changed
   it "are not made from a field that breaks its rule" refused
   it "are gone once removed" removed
@@ -33,6 +36,48 @@ fn appended v
     .> (at -> visit/post v at given/track .> (w -> visit/post w at given/track))
     .> (v -> visit/followed v)
     .> (v -> effect (expect v.body . to (contain "Track 2")))
+
+# Three tracks, and the third dragged to the top, as the page sends it:
+# only its new place. The list then starts with it, and the first is now
+# second.
+fn reordered v
+  tracks_path v
+    .> (at -> topped v at)
+    .> (v -> effect (expect (listed_first v.body) . to (equal "cadenza")))
+
+fn topped v at
+  three v at
+    .> (w -> visit/patch w (visit/location w) to_top)
+    .> (w -> visit/get w at)
+
+fn three v at
+  visit/post v at (titled "aubade")
+    .> (w -> visit/post w at (titled "barcarolle"))
+    .> (w -> visit/post w at (titled "cadenza"))
+
+fn titled t
+  put given/track "title" t
+
+to_top = { "position":"1" }
+
+# The title of the first track the list shows.
+fn listed_first body
+  after = text/split body "data-reorder"
+  return "" if length after < 2
+  first_link (text/split after[2] "</a>")
+
+fn first_link pieces
+  return "" if length pieces < 1
+  last_of (text/split pieces[1] ">")
+
+fn last_of parts
+  text_of (list/last parts)
+
+fn text_of none
+  ""
+
+fn text_of t
+  t
 
 fn changed v
   tracks_path v
