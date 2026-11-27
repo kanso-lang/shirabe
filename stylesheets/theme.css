@@ -176,3 +176,10 @@ a {
 .track.dragging {
   opacity: 0.6;
 }
+
+/* The sign-up form's field for programs that fill every field: off the
+   page, where a person never sees it or tabs to it. */
+.honey {
+  position: absolute;
+  left: -10000px;
+}

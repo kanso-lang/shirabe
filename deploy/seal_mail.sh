@@ -1,9 +1,12 @@
 #!/bin/sh
 # Run by the release workflow: seals the mail setting to the server's public
 # key, read from <key-url>, and writes it to <out> for deploy/mail.sh to
-# open on the server.
+# open on the server. Cloudflare Turnstile's two keys travel with it when
+# both are set, and the sign-up and reset forms then ask Turnstile.
 #
-#   GMAIL_ADDRESS=... GMAIL_APP_PASSWORD=... sh deploy/seal_mail.sh <key-url> <out>
+#   GMAIL_ADDRESS=... GMAIL_APP_PASSWORD=... \
+#     TURNSTILE_SITE_KEY=... TURNSTILE_SECRET_KEY=... \
+#     sh deploy/seal_mail.sh <key-url> <out>
 #
 # The app sends through Gmail with an app password, which Google shows in
 # groups of four letters; the spaces are dropped. Without both secrets, or
@@ -25,7 +28,15 @@ if ! curl -sf "$url" -o "$key"; then
   echo "seal_mail: the server publishes no key at $url yet; no mail setting"
   exit 0
 fi
-printf "SENRO_MAIL='smtp://%s:%s@smtp.gmail.com:587'\n" "$name" "$pw" |
+setting=$(printf "SENRO_MAIL='smtp://%s:%s@smtp.gmail.com:587'" "$name" "$pw")
+if [ -n "${TURNSTILE_SITE_KEY:-}" ] && [ -n "${TURNSTILE_SECRET_KEY:-}" ]; then
+  [ -z "${GITHUB_ACTIONS:-}" ] || echo "::add-mask::$TURNSTILE_SECRET_KEY"
+  setting="$setting
+TURNSTILE_SITE_KEY='$TURNSTILE_SITE_KEY'
+TURNSTILE_SECRET_KEY='$TURNSTILE_SECRET_KEY'"
+  echo "seal_mail: Turnstile's keys go with it"
+fi
+printf '%s\n' "$setting" |
   openssl pkeyutl -encrypt -pubin -inkey "$key" \
     -pkeyopt rsa_padding_mode:oaep -pkeyopt rsa_oaep_md:sha256 -out "$out"
 echo "seal_mail: sealed the mail setting to the server's key"
