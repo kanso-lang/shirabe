@@ -1,14 +1,13 @@
 takes album_id artist_id rows number more
-header
-  h1 Tracks
-  p.lede
-    a href=(path_to "tracks/new" album_id) New track
-    a href=(path_to "albums/show" artist_id album_id) Back to the album
-ul.tracks
+div.d-flex.align-items-end.justify-content-between.mb-4
+  div
+    h1.mb-1 Tracks
+    a.text-secondary href=(path_to "albums/show" artist_id album_id) Back to the album
+  a.btn.btn-primary href=(path_to "tracks/new" album_id) New track
+div.list-group
   each rows r ->
-    li
-      a href=(path_to "tracks/show" album_id r.id) = r.title
-nav.pages
+    a.list-group-item.list-group-item-action.py-3 href=(path_to "tracks/show" album_id r.id) = r.title
+nav.mt-4.d-flex.gap-3
   if number > 1
     a href="?page={number - 1}" Previous page
   if more

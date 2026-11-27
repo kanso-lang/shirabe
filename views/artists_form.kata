@@ -1,13 +1,14 @@
 takes path method fields problems
-header
-  h1 Artist
-  p.lede
-    a href=(path_to "artists/index") All artists
-form method="post" action=path
-  input type="hidden" name="_method" value=method
-  label
-    | name
-    input name="name" value=fields["name"]
-  if problems["name"] != none
-    p.problem = problems["name"]
-  button Save
+div.row
+  div.col-lg-7
+    p.mb-2
+      a.text-secondary href=(path_to "artists/index") Back
+    h1.mb-4 Artist
+    form method="post" action=path
+      input type="hidden" name="_method" value=method
+      div.mb-3
+        label.form-label for="name" Name
+        input.form-control id="name" name="name" value=fields["name"]
+        if problems["name"] != none
+          p.problem = problems["name"]
+      button.btn.btn-primary Save

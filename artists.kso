@@ -47,7 +47,7 @@ fn shown _ none
 fn shown req record
   attributes = artist/artist_attributes record
   return web/json 200 attributes if web/wants_json? req
-  page = views/artists_show_view record
+  page = views/artists_show_view record.id record
   views/answer req 200 "Artist" page
 
 fn editing _ _ none

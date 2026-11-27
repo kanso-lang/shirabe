@@ -1,23 +1,24 @@
 takes path method fields problems
-header
-  h1 Track
-  p.lede
-    a href=path Back
-form method="post" action=path enctype="multipart/form-data"
-  input type="hidden" name="_method" value=method
-  label
-    | title
-    input name="title" value=fields["title"]
-  if problems["title"] != none
-    p.problem = problems["title"]
-  label
-    | position
-    input name="position" value=fields["position"]
-  if problems["position"] != none
-    p.problem = problems["position"]
-  label
-    | audio
-    input type="file" name="audio"
-  if fields["audio"] != ""
-    p.kept Leave it empty to keep the file it has.
-  button Save
+div.row
+  div.col-lg-7
+    p.mb-2
+      a.text-secondary href=path Back
+    h1.mb-4 Track
+    form method="post" action=path enctype="multipart/form-data"
+      input type="hidden" name="_method" value=method
+      div.mb-3
+        label.form-label for="title" Title
+        input.form-control id="title" name="title" value=fields["title"]
+        if problems["title"] != none
+          p.problem = problems["title"]
+      div.mb-3
+        label.form-label for="position" Position
+        input.form-control id="position" name="position" type="number" value=fields["position"]
+        if problems["position"] != none
+          p.problem = problems["position"]
+      div.mb-3
+        label.form-label for="audio" Audio
+        input.form-control id="audio" type="file" name="audio" accept="audio/*"
+        if fields["audio"] != ""
+          p.form-text Leave it empty to keep the file it has.
+      button.btn.btn-primary Save

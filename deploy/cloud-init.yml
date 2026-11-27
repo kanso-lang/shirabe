@@ -1,8 +1,9 @@
 #cloud-config
 # shirabe's server, set up on its first boot: Postgres, Caddy in front of
 # the app with a certificate for the server's sslip.io name, and a timer that
-# runs the newest release this repository publishes. Nothing logs in to
-# deploy: the server pulls.
+# runs the newest release this repository publishes, with the service file
+# the release carries. Uploads are kept in /srv/shirabe/storage, outside any
+# release. Nothing logs in to deploy: the server pulls.
 package_update: true
 package_upgrade: true
 packages:
@@ -22,22 +23,6 @@ users:
     home: /srv/shirabe
 ssh_pwauth: false
 write_files:
-  # The app, run from the release the deploy timer last unpacked.
-  - path: /etc/systemd/system/shirabe.service
-    content: |
-      [Unit]
-      Description=shirabe
-      After=network-online.target postgresql.service
-      Wants=network-online.target
-      [Service]
-      User=shirabe
-      WorkingDirectory=/srv/shirabe
-      EnvironmentFile=/etc/shirabe/env
-      ExecStart=/srv/shirabe/current/shirabe
-      Restart=always
-      RestartSec=2
-      [Install]
-      WantedBy=multi-user.target
   - path: /etc/systemd/system/shirabe-deploy.service
     content: |
       [Unit]
@@ -84,6 +69,13 @@ write_files:
       tar xzf "$dir/build.tar.gz" -C "$dir"
       ln -sfn "$dir" /srv/shirabe/current
       echo "$tag" > "$state/tag"
+      # The release carries the service that runs it.
+      unit=/etc/systemd/system/shirabe.service
+      if ! cmp -s "$dir/deploy/shirabe.service" "$unit"; then
+        cp "$dir/deploy/shirabe.service" "$unit"
+        systemctl daemon-reload
+        systemctl enable shirabe
+      fi
       systemctl restart shirabe
       echo "shirabe-deploy: running $tag"
 runcmd:
@@ -95,10 +87,10 @@ runcmd:
   # sslip.io answers with that address, so Caddy can get a certificate for it.
   - ip=$(curl -s http://169.254.169.254/hetzner/v1/metadata/public-ipv4); printf '%s.sslip.io {\n  reverse_proxy 127.0.0.1:3000\n}\n' "$(echo "$ip" | tr . -)" > /etc/caddy/Caddyfile
   - systemctl restart caddy
-  - mkdir -p /etc/shirabe /srv/shirabe && chown shirabe:shirabe /srv/shirabe
-  - pw=$(head -c 24 /dev/urandom | base64 | tr -d '/+='); sudo -u postgres psql -c "create role shirabe login password '$pw'"; sudo -u postgres createdb -O shirabe shirabe; printf 'PORT=3000\nSENRO_SECRET=%s\nPGHOST=127.0.0.1\nPGPORT=5432\nPGUSER=shirabe\nPGPASSWORD=%s\nPGDATABASE=shirabe\n' "$(head -c 32 /dev/urandom | base64 | tr -d '/+=')" "$pw" > /etc/shirabe/env
+  - mkdir -p /etc/shirabe /srv/shirabe/storage && chown -R shirabe:shirabe /srv/shirabe
+  - pw=$(head -c 24 /dev/urandom | base64 | tr -d '/+='); sudo -u postgres psql -c "create role shirabe login password '$pw'"; sudo -u postgres createdb -O shirabe shirabe; printf 'PORT=3000\nSENRO_STORAGE=/srv/shirabe/storage\nSENRO_SECRET=%s\nPGHOST=127.0.0.1\nPGPORT=5432\nPGUSER=shirabe\nPGPASSWORD=%s\nPGDATABASE=shirabe\n' "$(head -c 32 /dev/urandom | base64 | tr -d '/+=')" "$pw" > /etc/shirabe/env
   - chmod 600 /etc/shirabe/env
   - dpkg-reconfigure -f noninteractive unattended-upgrades
   - systemctl daemon-reload
-  - systemctl enable shirabe shirabe-deploy.timer
+  - systemctl enable shirabe-deploy.timer
   - systemctl start shirabe-deploy.timer

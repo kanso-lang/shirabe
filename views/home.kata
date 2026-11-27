@@ -1,4 +1,6 @@
 takes name
-header
-  h1 = name
-  p.lede A senro app. Its resources are listed in main.kso.
+div.py-4
+  p.text-secondary.text-uppercase.small.mb-2 = name
+  h1 Your music, in tune.
+  p.lede.mb-4 Artists, their albums, and every track, kept in one quiet place.
+  a.btn.btn-primary href=(path_to "artists/index") Browse artists

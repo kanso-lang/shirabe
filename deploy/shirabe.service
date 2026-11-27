@@ -1,0 +1,13 @@
+[Unit]
+Description=shirabe
+After=network-online.target postgresql.service
+Wants=network-online.target
+[Service]
+User=shirabe
+WorkingDirectory=/srv/shirabe/current
+EnvironmentFile=/etc/shirabe/env
+ExecStart=/srv/shirabe/current/shirabe
+Restart=always
+RestartSec=2
+[Install]
+WantedBy=multi-user.target
