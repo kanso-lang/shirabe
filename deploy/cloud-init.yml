@@ -88,7 +88,7 @@ runcmd:
   - ip=$(curl -s http://169.254.169.254/hetzner/v1/metadata/public-ipv4); printf '%s.sslip.io {\n  reverse_proxy 127.0.0.1:3000\n}\n' "$(echo "$ip" | tr . -)" > /etc/caddy/Caddyfile
   - systemctl restart caddy
   - mkdir -p /etc/shirabe /srv/shirabe/storage && chown -R shirabe:shirabe /srv/shirabe
-  - pw=$(head -c 24 /dev/urandom | base64 | tr -d '/+='); sudo -u postgres psql -c "create role shirabe login password '$pw'"; sudo -u postgres createdb -O shirabe shirabe; printf 'PORT=3000\nSENRO_STORAGE=/srv/shirabe/storage\nSENRO_SECRET=%s\nPGHOST=127.0.0.1\nPGPORT=5432\nPGUSER=shirabe\nPGPASSWORD=%s\nPGDATABASE=shirabe\n' "$(head -c 32 /dev/urandom | base64 | tr -d '/+=')" "$pw" > /etc/shirabe/env
+  - pw=$(head -c 24 /dev/urandom | base64 | tr -d '/+='); sudo -u postgres psql -c "create role shirabe login password '$pw'"; sudo -u postgres createdb -O shirabe shirabe; ip=$(curl -s http://169.254.169.254/hetzner/v1/metadata/public-ipv4); printf 'PORT=3000\nSENRO_URL=https://%s.sslip.io\nSENRO_STORAGE=/srv/shirabe/storage\nSENRO_SECRET=%s\nPGHOST=127.0.0.1\nPGPORT=5432\nPGUSER=shirabe\nPGPASSWORD=%s\nPGDATABASE=shirabe\n' "$(echo "$ip" | tr . -)" "$(head -c 32 /dev/urandom | base64 | tr -d '/+=')" "$pw" > /etc/shirabe/env
   - chmod 600 /etc/shirabe/env
   - dpkg-reconfigure -f noninteractive unattended-upgrades
   - systemctl daemon-reload
