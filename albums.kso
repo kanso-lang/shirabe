@@ -35,7 +35,7 @@ fn album_page _ _ none
 # The album with its tracks first to last, each to be played where it
 # stands, and its owner's buttons for the owner alone.
 fn album_page req db r
-  track/paged db "album_id" r.id 1 album_most
+  track/paged (models/as_app db) "album_id" r.id 1 album_most
     .> (p -> effect (shown req r (list/sort_by p.rows (t -> t.position))))
 
 # More tracks than any album holds, so one page reads them all.

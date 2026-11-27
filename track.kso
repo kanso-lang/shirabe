@@ -6,8 +6,13 @@ import "kanso-lang/senro/models"
 # `track/paged db number per`, `track/create db fields` and the rest.
 #
 # Only the account that made a track sees it, changes it or removes it, and
-# it can only be made as that account's own.
+# it can only be made as that account's own. A public album's tracks are
+# read for its listeners as the app, once the album has passed its own
+# rule (`albums/show`, `tracks/show`).
 pub fn create? viewer r
+  r.owner == viewer
+
+pub fn visible? viewer r
   r.owner == viewer
 
 pub fn update? viewer r

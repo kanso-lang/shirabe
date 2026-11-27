@@ -13,7 +13,7 @@ import "std/text"
 # /albums/:album_id/tracks. A row is found only under its own album, and a
 # album that is not there has none to list or make.
 pub fn index req db album_id:int
-  album/find db album_id .> (a -> listed req db a)
+  album/find db album_id .> (a -> listed req db (own req a))
 
 # An album's tracks in their order on it, with the album's artist for the
 # link back, since an album's own pages nest under its artist.
@@ -28,12 +28,23 @@ fn in_order db album_id
   track/paged db "album_id" album_id 1 album_most
     .> (p -> effect (list/to_list (list/sort_by p.rows (r -> r.position))))
 
+# A track's page is shared with its album, so it asks for no sign-in. It is
+# there for whoever may see the album, and its owner's buttons are for the
+# owner alone.
+pub without_sign_in = ["show"]
+
 pub fn show req db album_id:int id:int
-  under db album_id id .> (r -> effect (shown req r))
+  album/find db album_id .> (a -> heard req db a id)
+
+fn heard _ _ none _
+  effect http/not_found
+
+fn heard req db a id
+  track/find (models/as_app db) id .> (r -> effect (shown req a (owned a.id r)))
 
 pub fn new req db album_id:int
   path = listed_path album_id
-  within db album_id (effect (form req path "POST" blank {} 200))
+  within req db album_id (effect (form req path "POST" blank {} 200))
 
 # A new track goes after the album's last, so an album plays in the order
 # its tracks were added, and nobody types a number.
@@ -43,7 +54,7 @@ pub fn create req db album_id:int
   numbered = (rows -> track/create db (put given "position" (next rows)))
   making = in_order db album_id .> numbered
   made_of = (w -> effect (made req album_id w))
-  within db album_id (making .> made_of)
+  within req db album_id (making .> made_of)
 
 # More tracks than any album holds, so one page reads them all.
 album_most = 1000
@@ -66,9 +77,17 @@ pub fn destroy _ db album_id:int id:int
     .> (r -> removing db id r)
     .> (w -> effect (gone album_id w))
 
-# `then` when the album is there, and a 404 when it is not.
-fn within db id then
-  album/find db id .> (found -> held found then)
+# `then` when the album is there and the viewer's own, and a 404 when it is
+# not: a public album is listened to, and only its owner adds to it.
+fn within req db id then
+  album/find db id .> (found -> held (own req found) then)
+
+# The album when it is the viewer's, or none.
+fn own _ none
+  none
+
+fn own req a
+  if (a.owner == web/viewer req) a none
 
 fn held none _
   effect http/not_found
@@ -148,13 +167,14 @@ fn listing req a rows
   page = views/tracks_index_view a.id a.artist_id rows
   views/answer req 200 "Tracks" page
 
-fn shown _ none
+fn shown _ _ none
   http/not_found
 
-fn shown req record
+fn shown req a record
   attributes = track/track_attributes record
   return web/json 200 attributes if web/wants_json? req
-  page = views/tracks_show_view record
+  mine = record.owner == web/viewer req
+  page = views/tracks_show_view record a.artist_id mine
   views/answer req 200 "Track" page
 
 fn editing _ _ _ none

@@ -12,10 +12,12 @@ type made
   email
   password
 
-# The owner's visit, signed in, and the path of the album they made.
+# The owner's visit, signed in, the path of the album they made, and the
+# path of its track.
 type owned
   visit
   at
+  track_at
 
 # An album shared, asked for as browsers ask: its owner signed in, a stranger
 # who has not signed in, and another account. The owner makes an artist, an
@@ -26,6 +28,9 @@ test_sharing = describe "an album" [
   it "is hidden from a stranger while it is private" hidden
   it "is shown with its tracks once its owner makes it public" shared
   it "is not changed by another account" kept
+  it "plays its tracks to a stranger once public, with no Delete" heard
+  it "keeps a private album's tracks from another account" unheard
+  it "takes no track from another account" unadded
 ]
 
 fn hidden v
@@ -69,7 +74,8 @@ fn owned_album v
 fn with_track v at
   album_id = text_of (list/last (text/split at "/"))
   sung = put given/track "title" "lullaby"
-  visit/post v "/albums/{album_id}/tracks" sung .> (w -> effect (owned w at))
+  visit/post v "/albums/{album_id}/tracks" sung
+    .> (w -> effect (owned w at (visit/location w)))
 
 # The owner's browser signed out: nobody signed in.
 fn stranger v
@@ -107,3 +113,42 @@ fn confirmed v letter
 address = "ada@example.test"
 
 other = "grace@example.test"
+
+# A track's page is shared with its album: a stranger hears it, and sees
+# neither Edit nor Delete.
+fn heard v
+  owned_album v
+    .> (o -> published o.visit o.at .> (w -> stranger w) .> (w -> o_track w o))
+    .> (s -> effect (expect (heard_as s) . to (equal "200 lullaby, no delete")))
+
+fn o_track v o
+  visit/get v o.track_at
+
+fn heard_as s
+  sung = if (has? s.body "lullaby") "lullaby" "silence"
+  offered = if (has? s.body "Delete") "delete" "no delete"
+  "{s.status} {sung}, {offered}"
+
+fn has? body part
+  length (text/split body part) > 1
+
+# A private album's track is no more there for another account than the
+# album is.
+fn unheard v
+  owned_album v
+    .> (o -> stranger o.visit .> (w -> joined w other) .> (w -> o_track w o))
+    .> (s -> effect (expect s.status . to (equal 404)))
+
+# Another account cannot add a track to a public album that is not theirs.
+fn unadded v
+  owned_album v
+    .> (o -> published o.visit o.at .> (w -> stranger w) .> (w -> adding w o))
+    .> (s -> effect (expect s.status . to (equal 404)))
+
+fn adding v o
+  album_id = text_of (list/last (text/split o.at "/"))
+  stolen = put given/track "title" "stolen"
+  joined v other .> (w -> visit/post w "/albums/{album_id}/tracks" stolen)
+
+fn published v at
+  visit/patch v at (put given/album "public" "1")
