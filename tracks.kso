@@ -8,15 +8,13 @@ import "std/list"
 import "std/net/http"
 import "std/text"
 
-# A row of `tracks` belongs to a album, so each action takes the album's id
-# and the routes nest under it: `index` answers GET
-# /albums/:album_id/tracks. A row is found only under its own album, and a
-# album that is not there has none to list or make.
+# A row of `tracks` belongs to an album, so its list and its form take the
+# album's id and nest under it: `index` answers GET /albums/:album_id/tracks.
+# A track's own pages are shallow: /tracks/:id finds it by its id.
 pub fn index req db album_id:int
   album/find db album_id .> (a -> listed req db (own req a))
 
-# An album's tracks in their order on it, with the album's artist for the
-# link back, since an album's own pages nest under its artist.
+# An album's tracks in their order on it.
 fn listed _ _ none
   effect http/not_found
 
@@ -33,14 +31,14 @@ fn in_order db album_id
 # owner alone.
 pub without_sign_in = ["show"]
 
-pub fn show req db album_id:int id:int
-  album/find db album_id .> (a -> heard req db a id)
+pub fn show req db id:int
+  track/find (models/as_app db) id .> (r -> heard req db r)
 
-fn heard _ _ none _
+fn heard _ _ none
   effect http/not_found
 
-fn heard req db a id
-  track/find (models/as_app db) id .> (r -> effect (shown req a (owned a.id r)))
+fn heard req db r
+  album/find db r.album_id .> (a -> effect (shown req a r))
 
 pub fn new req db album_id:int
   path = listed_path album_id
@@ -63,19 +61,17 @@ fn next rows
   last = list/fold rows 0 (n r -> if (r.position > n) r.position n)
   "{last + 1}"
 
-pub fn edit req db album_id:int id:int
-  under db album_id id .> (r -> effect (editing req album_id id r))
+pub fn edit req db id:int
+  track/find db id .> (r -> effect (editing req id r))
 
-pub fn update req db album_id:int id:int
+pub fn update req db id:int
   f = web/input req
-  under db album_id id
+  track/find db id
     .> (r -> updating db id f r)
-    .> (w -> effect (changed req album_id id w))
+    .> (w -> effect (changed req id w))
 
-pub fn destroy _ db album_id:int id:int
-  under db album_id id
-    .> (r -> removing db id r)
-    .> (w -> effect (gone album_id w))
+pub fn destroy _ db id:int
+  track/find db id .> (r -> removing db id r .> (w -> effect (gone r w)))
 
 # `then` when the album is there and the viewer's own, and a 404 when it is
 # not: a public album is listened to, and only its owner adds to it.
@@ -95,17 +91,7 @@ fn held none _
 fn held _ then
   then
 
-# The row with this id under this album, or none.
-fn under db album_id id
-  track/find db id .> (r -> effect (owned album_id r))
-
-fn owned _ none
-  none
-
-fn owned album_id r
-  if ("{r.album_id}" == "{album_id}") r none
-
-# A write to a row under another album finds nothing.
+# A write to a track that is not the viewer's finds nothing.
 fn updating _ _ _ none
   effect web/absent
 
@@ -157,31 +143,32 @@ fn removing db id _
 fn listed_path album_id
   routes/path_to "tracks/index" album_id
 
-fn shown_path album_id id
-  routes/path_to "tracks/show" album_id id
+fn shown_path id
+  routes/path_to "tracks/show" id
 
 fn listing req a rows
   as_json = track/track_attributes
   mapped = list/to_list (list/map rows as_json)
   return web/json 200 mapped if web/wants_json? req
-  page = views/tracks_index_view a.id a.artist_id rows
+  page = views/tracks_index_view a.id rows
   views/answer req 200 "Tracks" page
 
-fn shown _ _ none
+# A track is there for whoever may see its album.
+fn shown _ none _
   http/not_found
 
-fn shown req a record
+fn shown req _ record
   attributes = track/track_attributes record
   return web/json 200 attributes if web/wants_json? req
   mine = record.owner == web/viewer req
-  page = views/tracks_show_view record a.artist_id mine
+  page = views/tracks_show_view record mine
   views/answer req 200 "Track" page
 
-fn editing _ _ _ none
+fn editing _ _ none
   http/not_found
 
-fn editing req album_id id record
-  form req (shown_path album_id id) "PATCH" (filled record) {} 200
+fn editing req id record
+  form req (shown_path id) "PATCH" (filled record) {} 200
 
 fn made req album_id w:models/invalid
   path = listed_path album_id
@@ -190,21 +177,20 @@ fn made req album_id w:models/invalid
 fn made _ _ w:web/denied
   web/refusal w
 
-fn made _ album_id w
-  web/redirect (shown_path album_id w.id)
+fn made _ _ w
+  web/redirect (shown_path w.id)
 
-fn changed req album_id id w:models/invalid
-  path = shown_path album_id id
-  form req path "PATCH" (filled w.record) w.problems 422
+fn changed req id w:models/invalid
+  form req (shown_path id) "PATCH" (filled w.record) w.problems 422
 
-fn changed _ _ _ w:web/denied
+fn changed _ _ w:web/denied
   web/refusal w
 
-fn changed _ _ _ w:web/absent
+fn changed _ _ w:web/absent
   web/refusal w
 
-fn changed _ album_id id _
-  web/redirect (shown_path album_id id)
+fn changed _ id _
+  web/redirect (shown_path id)
 
 fn gone _ w:web/denied
   web/refusal w
@@ -212,8 +198,8 @@ fn gone _ w:web/denied
 fn gone _ w:web/absent
   web/refusal w
 
-fn gone album_id _
-  web/redirect (listed_path album_id)
+fn gone r _
+  web/redirect (listed_path r.album_id)
 
 # The form a track is made and changed with: its fields as typed, and the
 # problem with each, if any.

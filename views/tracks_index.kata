@@ -1,11 +1,11 @@
-takes album_id artist_id rows
+takes album_id rows
 div.d-flex.align-items-end.justify-content-between.mb-4
   div
     h1.mb-1 Tracks
-    a.text-secondary href=(path_to "albums/show" artist_id album_id) Back to the album
+    a.text-secondary href=(path_to "albums/show" album_id) Back to the album
   a.btn.btn-primary href=(path_to "tracks/new" album_id) New track
 ol.list-group.list-group-numbered data-reorder="tracks"
   each rows r ->
-    li.list-group-item.track data-path=(path_to "tracks/show" album_id r.id)
+    li.list-group-item.track data-path=(path_to "tracks/show" r.id)
       span.handle title="Drag to reorder" ⠿
-      a href=(path_to "tracks/show" album_id r.id) = r.title
+      a href=(path_to "tracks/show" r.id) = r.title

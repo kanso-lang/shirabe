@@ -6,7 +6,7 @@ div.d-flex.align-items-end.justify-content-between.mb-4
   a.btn.btn-primary href=(path_to "albums/new" artist_id) New album
 div.list-group
   each rows r ->
-    a.list-group-item.list-group-item-action.py-3 href=(path_to "albums/show" artist_id r.id) = r.title
+    a.list-group-item.list-group-item-action.py-3 href=(path_to "albums/show" r.id) = r.title
 nav.mt-4.d-flex.gap-3
   if number > 1
     a href="?page={number - 1}" Previous page

@@ -31,6 +31,7 @@ test_sharing = describe "an album" [
   it "plays its tracks to a stranger once public, with no Delete" heard
   it "keeps a private album's tracks from another account" unheard
   it "takes no track from another account" unadded
+  it "is shared at an address of its own, as are its tracks" addressed
 ]
 
 fn hidden v
@@ -152,3 +153,12 @@ fn adding v o
 
 fn published v at
   visit/patch v at (put given/album "public" "1")
+
+# An album's page and a track's page are found by their ids alone, so the
+# link a listener is sent is short and names no artist.
+fn addressed v
+  owned_album v
+    .> (o -> effect (expect (shapes o) . to (equal "albums tracks")))
+
+fn shapes o
+  "{(text/split o.at "/")[2]} {(text/split o.track_at "/")[2]}"
