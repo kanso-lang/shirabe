@@ -16,6 +16,10 @@ pub fn update? _ _
 pub fn destroy? _ _
   true
 
-# What makes a track fit to keep: each number is one its column takes.
+# What makes a track fit to keep: a title, and the place on its album that
+# `tracks/create` gives it, which is a whole number.
 pub fn problems r
-  models/problems [(models/whole_number "position" r.position)]
+  models/problems [
+    (models/present "title" r.title)
+    (models/whole_number "position" r.position)
+  ]

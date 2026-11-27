@@ -12,11 +12,6 @@ div.row
         if problems["title"] != none
           p.problem = problems["title"]
       div.mb-3
-        label.form-label for="position" Position
-        input.form-control id="position" name="position" type="number" value=fields["position"]
-        if problems["position"] != none
-          p.problem = problems["position"]
-      div.mb-3
         label.form-label for="audio" Audio
         input.form-control id="audio" type="file" name="audio" accept="audio/*"
         if fields["audio"] != ""

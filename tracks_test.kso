@@ -10,6 +10,7 @@ test_tracks = describe "tracks" [
   around (visit/within routes connected)
   it "are listed" listed
   it "are made from the form and shown" made
+  it "go after the album's last" appended
   it "are changed from the form" changed
   it "are not made from a field that breaks its rule" refused
   it "are gone once removed" removed
@@ -25,6 +26,13 @@ fn made v
     .> (at -> visit/post v at given/track)
     .> (v -> visit/followed v)
     .> (v -> effect (expect v.body . to (contain "milk")))
+
+# Nobody types a track's place: the second one added is track 2.
+fn appended v
+  tracks_path v
+    .> (at -> visit/post v at given/track .> (w -> visit/post w at given/track))
+    .> (v -> visit/followed v)
+    .> (v -> effect (expect v.body . to (contain "Track 2")))
 
 fn changed v
   tracks_path v
@@ -57,4 +65,4 @@ fn tracks_path v
 
 edited = put given/track "title" "bread"
 
-broken = put given/track "position" "many"
+broken = put given/track "title" ""

@@ -5,4 +5,4 @@ pub artist = { "name":"milk" }
 
 pub album = { "title":"milk" "year":"3" }
 
-pub track = { "position":"3" "title":"milk" }
+pub track = { "title":"milk" }
