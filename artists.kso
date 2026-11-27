@@ -21,7 +21,7 @@ pub fn new req _
   effect (form req path "POST" blank {} 200)
 
 pub fn create req db
-  given = picked (web/input req)
+  given = put (picked (web/input req)) "owner" (web/viewer req)
   artist/create db given .> (w -> effect (made req w))
 
 pub fn edit req db id:int

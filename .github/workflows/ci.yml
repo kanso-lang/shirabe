@@ -54,6 +54,8 @@ jobs:
         run: /tmp/kanso/target/release/kanso build . --release
       - name: the mail setting reaches the server sealed
         run: sh deploy/mail_test.sh
+      - name: rows made before owners go to the first confirmed account
+        run: sh deploy/owners_test.sh
       # The Gmail secrets, sealed to the key the server publishes, so only the
       # server can read them (deploy/seal_mail.sh, deploy/mail.sh).
       - name: seal the mail setting
@@ -74,7 +76,7 @@ jobs:
           sealed=""
           [ ! -f deploy/mail.enc ] || sealed=deploy/mail.enc
           tar czf shirabe-linux-x86_64.tar.gz shirabe importmap.json javascript \
-            stylesheets vendor public deploy/shirabe.service deploy/mail.sh $sealed
+            stylesheets vendor public deploy/shirabe.service deploy/mail.sh deploy/owners.sh $sealed
           sha256sum shirabe-linux-x86_64.tar.gz > shirabe-linux-x86_64.tar.gz.sha256
           gh release create "$tag" shirabe-linux-x86_64.tar.gz shirabe-linux-x86_64.tar.gz.sha256 \
             --title "$tag" --notes "Built from $GITHUB_SHA." --latest

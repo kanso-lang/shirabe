@@ -5,16 +5,16 @@ import "kanso-lang/senro/models"
 # and answers for the table by this module's name: `track/find db id`,
 # `track/paged db number per`, `track/create db fields` and the rest.
 #
-# Anyone may make, change and remove a track. The models module asks these
-# before it writes; narrow them to the visitors who should.
-pub fn create? _ _
-  true
+# Only the account that made a track sees it, changes it or removes it, and
+# it can only be made as that account's own.
+pub fn create? viewer r
+  r.owner == viewer
 
-pub fn update? _ _
-  true
+pub fn update? viewer r
+  r.owner == viewer
 
-pub fn destroy? _ _
-  true
+pub fn destroy? viewer r
+  r.owner == viewer
 
 # What makes a track fit to keep: a title, and the place on its album that
 # `tracks/create` gives it, which is a whole number.

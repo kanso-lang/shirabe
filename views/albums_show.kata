@@ -1,11 +1,23 @@
-takes album_id row
-p.mb-2
-  a.text-secondary href=(path_to "albums/index" row.artist_id) All albums
+takes album_id row tracks mine
+if mine
+  p.mb-2
+    a.text-secondary href=(path_to "albums/index" row.artist_id) All albums
 h1.mb-1 = row.title
 p.lede.mb-4 = row.year
-div.d-flex.gap-2
-  a.btn.btn-primary href=(path_to "tracks/index" album_id) Tracks
-  a.btn.btn-outline-secondary href=(path_to "albums/edit" row.artist_id row.id) Edit
-  form method="post" action=(path_to "albums/destroy" row.artist_id row.id)
-    input type="hidden" name="_method" value="DELETE"
-    button.btn.btn-link.text-secondary Delete
+if mine and row.public == 1
+  p.notice Public: anyone with this page's link can listen.
+if mine and row.public != 1
+  p.text-secondary.mb-4 Private: only you can see it. Edit it to make it public.
+ol.list-group.list-group-numbered.mb-4
+  each tracks t ->
+    li.list-group-item.py-3
+      span = t.title
+      if t.audio != ""
+        audio.w-100.mt-2.d-block controls="controls" preload="none" src=(blob_path t.audio)
+if mine
+  div.d-flex.gap-2
+    a.btn.btn-primary href=(path_to "tracks/index" album_id) Tracks
+    a.btn.btn-outline-secondary href=(path_to "albums/edit" row.artist_id row.id) Edit
+    form method="post" action=(path_to "albums/destroy" row.artist_id row.id)
+      input type="hidden" name="_method" value="DELETE"
+      button.btn.btn-link.text-secondary Delete

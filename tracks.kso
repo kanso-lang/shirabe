@@ -38,7 +38,8 @@ pub fn new req db album_id:int
 # A new track goes after the album's last, so an album plays in the order
 # its tracks were added, and nobody types a number.
 pub fn create req db album_id:int
-  given = put (sent (web/input req)) "album_id" "{album_id}"
+  theirs = put (sent (web/input req)) "owner" (web/viewer req)
+  given = put theirs "album_id" "{album_id}"
   numbered = (rows -> track/create db (put given "position" (next rows)))
   making = in_order db album_id .> numbered
   made_of = (w -> effect (made req album_id w))
