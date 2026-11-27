@@ -5,6 +5,10 @@ Wants=network-online.target
 [Service]
 User=shirabe
 WorkingDirectory=/srv/shirabe/current
+# The address the app's mail links to. A server cloud-init makes now names
+# it in /etc/shirabe/env, which overrides this; this line is for the server
+# made before that, at the address it kept.
+Environment=SENRO_URL=https://178-105-197-4.sslip.io
 EnvironmentFile=/etc/shirabe/env
 ExecStart=/srv/shirabe/current/shirabe
 Restart=always
