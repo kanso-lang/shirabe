@@ -1,0 +1,15 @@
+takes album_id artist_id rows number more
+header
+  h1 Tracks
+  p.lede
+    a href=(path_to "tracks/new" album_id) New track
+    a href=(path_to "albums/show" artist_id album_id) Back to the album
+ul.tracks
+  each rows r ->
+    li
+      a href=(path_to "tracks/show" album_id r.id) = r.title
+nav.pages
+  if number > 1
+    a href="?page={number - 1}" Previous page
+  if more
+    a href="?page={number + 1}" Next page

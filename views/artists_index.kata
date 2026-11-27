@@ -1,0 +1,14 @@
+takes rows number more
+header
+  h1 Artists
+  p.lede
+    a href=(path_to "artists/new") New artist
+ul.artists
+  each rows r ->
+    li
+      a href=(path_to "artists/show" r.id) = r.name
+nav.pages
+  if number > 1
+    a href="?page={number - 1}" Previous page
+  if more
+    a href="?page={number + 1}" Next page

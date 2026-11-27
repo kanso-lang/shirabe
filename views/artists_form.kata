@@ -1,0 +1,13 @@
+takes path method fields problems
+header
+  h1 Artist
+  p.lede
+    a href=(path_to "artists/index") All artists
+form method="post" action=path
+  input type="hidden" name="_method" value=method
+  label
+    | name
+    input name="name" value=fields["name"]
+  if problems["name"] != none
+    p.problem = problems["name"]
+  button Save

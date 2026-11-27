@@ -1,0 +1,23 @@
+takes path method fields problems
+header
+  h1 Track
+  p.lede
+    a href=path Back
+form method="post" action=path enctype="multipart/form-data"
+  input type="hidden" name="_method" value=method
+  label
+    | title
+    input name="title" value=fields["title"]
+  if problems["title"] != none
+    p.problem = problems["title"]
+  label
+    | position
+    input name="position" value=fields["position"]
+  if problems["position"] != none
+    p.problem = problems["position"]
+  label
+    | audio
+    input type="file" name="audio"
+  if fields["audio"] != ""
+    p.kept Leave it empty to keep the file it has.
+  button Save

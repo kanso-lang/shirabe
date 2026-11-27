@@ -1,0 +1,60 @@
+import "./given"
+import "kanso-lang/senro/visit"
+import "std/expect"
+import "std/spec"
+
+# The tracks, asked for as a browser asks. `senro test` runs these against
+# the test database, and each example runs in a transaction that is rolled
+# back, so none of them sees what another wrote.
+test_tracks = describe "tracks" [
+  around (visit/within routes connected)
+  it "are listed" listed
+  it "are made from the form and shown" made
+  it "are changed from the form" changed
+  it "are not made from a field that breaks its rule" refused
+  it "are gone once removed" removed
+]
+
+fn listed v
+  tracks_path v
+    .> (at -> visit/get v at)
+    .> (v -> effect (expect v.status . to (equal 200)))
+
+fn made v
+  tracks_path v
+    .> (at -> visit/post v at given/track)
+    .> (v -> visit/followed v)
+    .> (v -> effect (expect v.body . to (contain "milk")))
+
+fn changed v
+  tracks_path v
+    .> (at -> visit/post v at given/track)
+    .> (v -> visit/patch v (visit/location v) edited)
+    .> (v -> visit/followed v)
+    .> (v -> effect (expect v.body . to (contain "bread")))
+
+fn refused v
+  tracks_path v
+    .> (at -> visit/post v at broken)
+    .> (v -> effect (expect v.status . to (equal 422)))
+
+fn removed v
+  tracks_path v
+    .> (at -> visit/post v at given/track)
+    .> (v -> gone v (visit/location v))
+
+fn gone v at
+  visit/remove v at
+    .> (v -> visit/get v at)
+    .> (v -> effect (expect v.status . to (equal 404)))
+
+# A album for an example's tracks to sit under, and the path to them.
+# An album belongs to an artist, so the artist is made first.
+fn tracks_path v
+  artist/create v.db given/artist
+    .> (a -> album/create v.db (put given/album "artist_id" "{a.id}"))
+    .> (n -> effect "/albums/{n.id}/tracks")
+
+edited = put given/track "title" "bread"
+
+broken = put given/track "position" "many"

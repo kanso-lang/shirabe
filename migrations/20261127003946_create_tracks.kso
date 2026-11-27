@@ -1,0 +1,13 @@
+import "kanso-lang/senro/models"
+
+pub create_tracks = [
+  tracks_table
+  (models/add_foreign_key "tracks" "album_id" "albums")
+]
+
+tracks_table = models/create_table "tracks" [
+  (models/column "title" "text")
+  (models/column "position" "integer")
+  (models/column "audio" "text not null default ''")
+  (models/column "album_id" "integer not null")
+]

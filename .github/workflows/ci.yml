@@ -1,0 +1,65 @@
+name: ci
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+# A push to main publishes the build as a release, which the server pulls.
+permissions:
+  contents: write
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_HOST_AUTH_METHOD: trust
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres" --health-interval 2s --health-timeout 5s
+          --health-retries 15
+    env:
+      PGHOST: 127.0.0.1
+      PGPORT: 5432
+      PGUSER: postgres
+      PGDATABASE: postgres
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      # The compiler is pinned, so a failure here is the app's own, and moving
+      # the pin is a change of its own.
+      - name: the pinned kanso
+        run: |
+          git clone https://github.com/kanso-lang/kanso /tmp/kanso
+          cd /tmp/kanso && git checkout "$(cat $GITHUB_WORKSPACE/.kanso-version)"
+          cargo build --release
+      # `kanso build --release` compiles through clang and links with lld.
+      - name: clang and lld
+        run: |
+          sh /tmp/kanso/scripts/apt_ready.sh
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq --no-install-recommends clang-19 lld-19
+          sudo ln -sf /usr/bin/clang-19 /usr/local/bin/clang
+          sudo ln -sf /usr/bin/ld.lld-19 /usr/local/bin/ld.lld
+      - name: senro, at the release hako.lock pins
+        run: /tmp/kanso/target/release/kanso install .
+      - name: the app's tests
+        run: |
+          senro=$(awk '$1 == "kanso-lang/senro" { print $3 }' hako.lock)
+          KANSO=/tmp/kanso/target/release/kanso sh "$HOME/.hako/kanso-lang/senro@$senro/bin/senro" test
+      - name: the release build
+        run: /tmp/kanso/target/release/kanso build . --release
+      # The server asks GitHub for the latest release and runs what it holds:
+      # the binary, and its sha256 so a broken download is never run.
+      - name: publish the build
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          tag="build-$(date -u +%Y%m%d%H%M%S)-${GITHUB_SHA::7}"
+          tar czf shirabe-linux-x86_64.tar.gz shirabe
+          sha256sum shirabe-linux-x86_64.tar.gz > shirabe-linux-x86_64.tar.gz.sha256
+          gh release create "$tag" shirabe-linux-x86_64.tar.gz shirabe-linux-x86_64.tar.gz.sha256 \
+            --title "$tag" --notes "Built from $GITHUB_SHA." --latest

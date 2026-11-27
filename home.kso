@@ -1,0 +1,5 @@
+import "./views"
+
+pub fn index req _
+  page = views/home_view "shirabe"
+  effect (views/answer req 200 "shirabe" page)

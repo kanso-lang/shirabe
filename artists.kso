@@ -1,0 +1,104 @@
+import "./artist"
+import "./views"
+import "kanso-lang/senro/models"
+import "kanso-lang/senro/routes"
+import "kanso-lang/senro/web"
+import "std/list"
+import "std/net/http"
+
+pub fn index req db
+  number = models/page_number (web/value (web/query req) "page")
+  artist/paged db number per_page .> (p -> effect (listing req p))
+
+# How many rows a page of the list shows.
+per_page = 25
+
+pub fn show req db id:int
+  artist/find db id .> (r -> effect (shown req r))
+
+pub fn new req _
+  path = routes/path_to "artists/create"
+  effect (form req path "POST" blank {} 200)
+
+pub fn create req db
+  given = picked (web/input req)
+  artist/create db given .> (w -> effect (made req w))
+
+pub fn edit req db id:int
+  artist/find db id .> (r -> effect (editing req id r))
+
+pub fn update req db id:int
+  given = picked (web/input req)
+  artist/update db id given .> (w -> effect (changed req id w))
+
+pub fn destroy _ db id:int
+  artist/destroy db id .> (w -> effect (gone w))
+
+fn listing req p
+  as_json = artist/artist_attributes
+  mapped = list/to_list (list/map p.rows as_json)
+  return web/json 200 mapped if web/wants_json? req
+  page = views/artists_index_view p.rows p.number p.more
+  views/answer req 200 "Artists" page
+
+fn shown _ none
+  http/not_found
+
+fn shown req record
+  attributes = artist/artist_attributes record
+  return web/json 200 attributes if web/wants_json? req
+  page = views/artists_show_view record
+  views/answer req 200 "Artist" page
+
+fn editing _ _ none
+  http/not_found
+
+fn editing req id record
+  path = routes/path_to "artists/update" id
+  form req path "PATCH" (filled record) {} 200
+
+fn made req w:models/invalid
+  path = routes/path_to "artists/create"
+  form req path "POST" (filled w.record) w.problems 422
+
+fn made _ w:web/denied
+  web/refusal w
+
+fn made _ w
+  web/redirect (routes/path_to "artists/show" w.id)
+
+fn changed req id w:models/invalid
+  path = routes/path_to "artists/update" id
+  form req path "PATCH" (filled w.record) w.problems 422
+
+fn changed _ _ w:web/denied
+  web/refusal w
+
+fn changed _ _ w:web/absent
+  web/refusal w
+
+fn changed _ id _
+  web/redirect (routes/path_to "artists/show" id)
+
+fn gone w:web/denied
+  web/refusal w
+
+fn gone w:web/absent
+  web/refusal w
+
+fn gone _
+  web/redirect (routes/path_to "artists/index")
+
+# The form a artist is made and changed with: its fields as typed, and the
+# problem with each, if any.
+fn form req path method fields problems code
+  page = views/artists_form_view path method fields problems
+  views/answer req code "Artist" page
+
+blank = { "name":"" }
+
+fn filled r
+  { "name":"{r.name}" }
+
+fn picked f
+  { "name":(web/value f "name") }

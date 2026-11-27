@@ -1,0 +1,12 @@
+import "kanso-lang/senro/models"
+
+pub create_albums = [
+  albums_table
+  (models/add_foreign_key "albums" "artist_id" "artists")
+]
+
+albums_table = models/create_table "albums" [
+  (models/column "title" "text")
+  (models/column "year" "integer")
+  (models/column "artist_id" "integer not null")
+]

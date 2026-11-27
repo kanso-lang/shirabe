@@ -1,0 +1,104 @@
+#cloud-config
+# shirabe's server, set up on its first boot: Postgres, Caddy in front of
+# the app with a certificate for the server's sslip.io name, and a timer that
+# runs the newest release this repository publishes. Nothing logs in to
+# deploy: the server pulls.
+package_update: true
+package_upgrade: true
+packages:
+  - postgresql
+  - unattended-upgrades
+  - debian-keyring
+  - debian-archive-keyring
+  - apt-transport-https
+  - curl
+  - gnupg
+  - jq
+users:
+  - default
+  - name: shirabe
+    system: true
+    shell: /usr/sbin/nologin
+    home: /srv/shirabe
+ssh_pwauth: false
+write_files:
+  # The app, run from the release the deploy timer last unpacked.
+  - path: /etc/systemd/system/shirabe.service
+    content: |
+      [Unit]
+      Description=shirabe
+      After=network-online.target postgresql.service
+      Wants=network-online.target
+      [Service]
+      User=shirabe
+      WorkingDirectory=/srv/shirabe
+      EnvironmentFile=/etc/shirabe/env
+      ExecStart=/srv/shirabe/current/shirabe
+      Restart=always
+      RestartSec=2
+      [Install]
+      WantedBy=multi-user.target
+  - path: /etc/systemd/system/shirabe-deploy.service
+    content: |
+      [Unit]
+      Description=run shirabe's newest release
+      [Service]
+      Type=oneshot
+      ExecStart=/usr/local/bin/shirabe-deploy
+  - path: /etc/systemd/system/shirabe-deploy.timer
+    content: |
+      [Unit]
+      Description=ask for shirabe's newest release every minute
+      [Timer]
+      OnBootSec=30s
+      OnUnitActiveSec=60s
+      [Install]
+      WantedBy=timers.target
+  # Asks GitHub for the latest release with the ETag of the last answer, so
+  # an unchanged one is a 304 that costs nothing against the rate limit.
+  # A new release is downloaded, checked against its sha256, unpacked beside
+  # the others, and run; the app migrates the database as it starts.
+  - path: /usr/local/bin/shirabe-deploy
+    permissions: '0755'
+    content: |
+      #!/bin/sh
+      set -eu
+      repo=kanso-lang/shirabe
+      state=/srv/shirabe/deploy
+      mkdir -p "$state" /srv/shirabe/releases
+      etag=$(cat "$state/etag" 2>/dev/null || true)
+      code=$(curl -s -o "$state/latest.json" -D "$state/headers" -w '%{http_code}' \
+        -H "If-None-Match: $etag" "https://api.github.com/repos/$repo/releases/latest")
+      [ "$code" = 200 ] || exit 0
+      grep -i '^etag:' "$state/headers" | cut -d' ' -f2- | tr -d '\r' > "$state/etag"
+      tag=$(jq -r .tag_name "$state/latest.json")
+      [ "$tag" != "$(cat "$state/tag" 2>/dev/null || true)" ] || exit 0
+      dir=/srv/shirabe/releases/$tag
+      mkdir -p "$dir"
+      base=https://github.com/$repo/releases/download/$tag/shirabe-linux-x86_64.tar.gz
+      curl -sfL -o "$dir/build.tar.gz" "$base"
+      curl -sfL -o "$dir/build.tar.gz.sha256" "$base.sha256"
+      want=$(cut -d' ' -f1 "$dir/build.tar.gz.sha256")
+      got=$(sha256sum "$dir/build.tar.gz" | cut -d' ' -f1)
+      [ "$want" = "$got" ] || { echo "shirabe-deploy: $tag does not match its sha256"; exit 1; }
+      tar xzf "$dir/build.tar.gz" -C "$dir"
+      ln -sfn "$dir" /srv/shirabe/current
+      echo "$tag" > "$state/tag"
+      systemctl restart shirabe
+      echo "shirabe-deploy: running $tag"
+runcmd:
+  - curl -1sLf https://dl.cloudsmith.io/public/caddy/stable/gpg.key | gpg --dearmor -o /usr/share/keyrings/caddy-stable-archive-keyring.gpg
+  - curl -1sLf https://dl.cloudsmith.io/public/caddy/stable/debian.deb.txt -o /etc/apt/sources.list.d/caddy-stable.list
+  - apt-get update
+  - DEBIAN_FRONTEND=noninteractive apt-get install -y caddy
+  # The sslip.io name is the server's IPv4 address with dashes, which
+  # sslip.io answers with that address, so Caddy can get a certificate for it.
+  - ip=$(curl -s http://169.254.169.254/hetzner/v1/metadata/public-ipv4); printf '%s.sslip.io {\n  reverse_proxy 127.0.0.1:3000\n}\n' "$(echo "$ip" | tr . -)" > /etc/caddy/Caddyfile
+  - systemctl restart caddy
+  - mkdir -p /etc/shirabe /srv/shirabe && chown shirabe:shirabe /srv/shirabe
+  - pw=$(head -c 24 /dev/urandom | base64 | tr -d '/+='); sudo -u postgres psql -c "create role shirabe login password '$pw'"; sudo -u postgres createdb -O shirabe shirabe; printf 'PORT=3000\nSENRO_SECRET=%s\nPGHOST=127.0.0.1\nPGPORT=5432\nPGUSER=shirabe\nPGPASSWORD=%s\nPGDATABASE=shirabe\n' "$(head -c 32 /dev/urandom | base64 | tr -d '/+=')" "$pw" > /etc/shirabe/env
+  - chmod 600 /etc/shirabe/env
+  - dpkg-reconfigure -f noninteractive unattended-upgrades
+  - systemctl daemon-reload
+  - systemctl enable shirabe shirabe-deploy.timer
+  - systemctl start shirabe-deploy.timer
