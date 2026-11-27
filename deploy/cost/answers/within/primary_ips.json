@@ -1,0 +1,18 @@
+{
+  "primary_ips": [
+    {
+      "name": "ip-ipv4",
+      "type": "ipv4",
+      "location": {
+        "name": "fsn1"
+      }
+    },
+    {
+      "name": "ip-ipv6",
+      "type": "ipv6",
+      "location": {
+        "name": "fsn1"
+      }
+    }
+  ]
+}
